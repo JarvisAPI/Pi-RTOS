@@ -30,3 +30,7 @@
 
 # Debug files
 *.dSYM/
+kernel7.img
+kernel7.list
+kernel7.map
+kernel7.syms
