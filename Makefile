@@ -7,7 +7,8 @@ SOURCES = Demo/main.c \
           Source/tasks.c \
           Source/list.c \
           Source/portable/GCC/RaspberryPi/port.c \
-          Source/portable/GCC/RaspberryPi/portisr.c \
+          Source/portable/GCC/RaspberryPi/portISR.c \
+          Source/portable/GCC/RaspberryPi/portASM.c \
           Source/portable/MemMang/heap_4.c
 
 OBJECTS = $(patsubst %.c,build/%.o,$(SOURCES))

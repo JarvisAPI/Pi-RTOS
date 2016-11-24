@@ -14,7 +14,7 @@ static RPI_IRQ_TABLE_t g_rpi_irq_table[RPI_TOTAL_IRQ];
  *	It is based on the assembler code found in the Broadcom datasheet.
  *
  **/
-void rpi_irq_service_routine() {
+void vApplicationIRQHandler() {
     register uint32_t ulMaskedStatus;
     register uint32_t irqNumber;
     register uint32_t tmp;
@@ -54,10 +54,20 @@ void rpi_irq_service_routine() {
     ulMaskedStatus = ulMaskedStatus ^ tmp;
 
     uint32_t lz = clz(ulMaskedStatus);
+    irqNumber = irqNumber - lz;
 
-    if (g_rpi_irq_table[irqNumber - lz].pHandler) {
-        g_rpi_irq_table[irqNumber - lz].pHandler(g_rpi_irq_table[irqNumber - lz].pParam);
+    if (g_rpi_irq_table[irqNumber].pHandler) {
+        g_rpi_irq_table[irqNumber].pHandler(irqNumber, g_rpi_irq_table[irqNumber].pParam);
     }
+}
+
+__attribute__((no_instrument_function))
+static void stubHandler(int nIRQ, void *pParam) {
+	/**
+	 *	Actually if we get here, we should probably disable the IRQ,
+	 *	otherwise we could lock up this system, as there is nothing to
+	 *	ackknowledge the interrupt.
+	 **/
 }
 
 void rpi_irq_init() {
@@ -68,7 +78,7 @@ void rpi_irq_init() {
     RPI_IRQ->DISABLE_BASIC = RPI_IRQ_MASK;
 
     for (i = 0; i < RPI_TOTAL_IRQ; i++) {
-        g_rpi_irq_table[i].pHandler = (void *) 0;
+        g_rpi_irq_table[i].pHandler = stubHandler;
         g_rpi_irq_table[i].pParam = (void *) 0;
     }
 }

@@ -1,8 +1,8 @@
 .extern	system_init
 .extern __bss_start
 .extern __bss_end
-.extern vFreeRTOS_ISR
-.extern vPortYieldProcessor
+.extern FreeRTOS_IRQ_Handler
+.extern FreeRTOS_SVC_Handler    
 .extern rpi_cpu_irq_disable
 .extern main
 	.section .init
@@ -26,11 +26,11 @@ _start:
 	;@ Here we create an exception address table! This means that reset/hang/irq can be absolute addresses
 reset_handler:      .word reset
 undefined_handler:  .word undefined_instruction
-swi_handler:        .word vPortYieldProcessor
+swi_handler:        .word FreeRTOS_SVC_Handler
 prefetch_handler:   .word prefetch_abort
 data_handler:       .word data_abort
 unused_handler:     .word unused
-irq_handler:        .word vFreeRTOS_ISR
+irq_handler:        .word FreeRTOS_IRQ_Handler
 fiq_handler:        .word fiq
 
 reset:

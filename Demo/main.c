@@ -34,7 +34,7 @@ void task2(void *pParam) {
  *	-- Absolutely nothing wrong with this being called main(), just it doesn't have
  *	-- the same prototype as you'd see in a linux program.
  **/
-void main(void) {
+int main(void) {
 	rpi_cpu_irq_disable();
 
 	rpi_gpio_sel_fun(47, 1);			// RDY led
