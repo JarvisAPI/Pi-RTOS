@@ -54,8 +54,22 @@ This is a theoretically significant result since it establishes that task partit
 The main idea of Chattopadhyay and Baruah's approach is to construct, for each identical multiprocessor platform upon which one will execute implicit-deadline sporadic task systems under partitioned EDF, a lookup table (LUT). Whenever a task system is to be partitioned upon this platform, this table is used to determine the assignment of the tasks to the processors.
 The LUT is constructed assuming that the utilizations of all the tasks have values from within a fixed set of distinct values V. When this LUT is later used to actually partition of a given task system τ, each task in τ may need to have its worst-case execution time (WCET) parameter inflated so that the resulting task utilization is indeed one of these distinct values in V. The challenge lies in choosing the values in V in such a manner that the amount of such inflation of WCET’s that is required is not too large. _You will have to read the paper carefully for the implementation details_.
 
+For this task, you do not need to consider resource access. 
+
+## [Subtask B] Global EDF
+In contrast to partitioned scheduling, global scheduling permits task migration (i.e., different jobs of an individual task may execute upon different 
+processors) as well as job-migration: An individual job that is preempted may resume execution upon a different from the one upon which it had been executing prior to preemption. 
+
+Thus, for global EDF scheduling, a single ready queue is maintained for all tasks and processors. Tasks are inserted into the global queue in EDF order, and they job at the top of the ready queue is dispatched to any processor.
+
+[here perform online admission control].
+
 # [Task 4] Top-like Tool
-Here you will design an interactive console application that shows, for each of the four cores (a column for each core), the tasks that are running on each core. This tool is particularly useful when the scheduling algorithm is global and tasks migrate across cores. The tool itself is a periodic task that updates the display every _P_ seconds for some period _P_ of your choice. 
+Here you will design an interactive console application that displays, for each of the four cores (a column for each core), the tasks that are currently running on the core. This tool is particularly useful when the scheduling algorithm is global and tasks migrate across cores. The tool itself, when started, may be modeled as a periodic task that updates the display every _P_ seconds for some period _P_ of your choice. You may want to consider using a server task to handle 
+top instantiation as well as periodic interactive top updates.
+
+The tool should be started by typing `top` in the console. Once your kernel 
+receives the string `top`, the display on the console to which the UART is connected is updated to show your top table, and no other messages that your tasks (or kernel) print to the console should show while top is running. The top tool is terminated by sending the command "top -t". 
 
 
 -------------------------------------------------------------------------------
