@@ -53,7 +53,7 @@ The LUT is constructed assuming that the utilizations of all the tasks have valu
  
 
 # [Task 4] Top-like Tool 
-
+Here you will design an interactive console application that shows, for each of the four cores (a column for each core), the tasks that are running on each core. This tool is particularly helpful when the scheduling algorithm is global and tasks migrate across cores.
 -------------------------------------------------------------------------------
 
 
