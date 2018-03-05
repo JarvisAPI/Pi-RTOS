@@ -98,7 +98,7 @@ the demos, so _prepare a nice demo!_
 
 # Submission instructions
 
-2. In `changes.md`, record all of the changes that you needed to make to 
+1. In `changes.md`, record all of the changes that you needed to make to 
    FreeRTOS in order to support EDF and SRP. Make sure to include all the 
    files that you altered as well as the functions you changed, and also
    list the new functions that you added. 
