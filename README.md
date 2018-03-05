@@ -60,7 +60,8 @@ For this task, you do not need to consider resource access.
 In contrast to partitioned scheduling, global scheduling permits task migration (i.e., different jobs of an individual task may execute upon different 
 processors) as well as job-migration: An individual job that is preempted may resume execution upon a different from the one upon which it had been executing prior to preemption. 
 
-Thus, for global EDF scheduling, a single ready queue is maintained for all tasks and processors. Tasks are inserted into the global queue in EDF order, and they job at the top of the ready queue is dispatched to any processor.
+Thus, for global EDF scheduling, a single ready queue is maintained for all tasks and processors. Tasks are inserted into the global queue in EDF order, and 
+the job at the head of the ready queue is dispatched to any processor.
 
 [here perform online admission control].
 
