@@ -43,7 +43,8 @@ You will be implementing a Polynomial Time Approximation Scheme (PTAS) for task 
 For instance, if the problem at hand is a 
 minimization problem, and we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(I, ɛ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ. A valid running time for A would be, for instance, O((n/ɛ)<sup>1/ɛ<sup>2</sup></sup>), where n := |I|. 
 
-[Hochbaum and Shmoys]() designed a PTAS for the partitioning of implicit-deadline sporadic task systems that behaves as follows. Given any positive constant φ, if an optimal algorithm can partition a given task system τ upon m processors, then the algorithm will, in time polynomial in the representation of τ, partition τ upon m processors each of speed (1 + φ). This can be thought of as a _resource augmentation_ result: the algorithm can partition, in polynomial time, any task system that can be partitioned upon a given platform by an optimal algorithm, provided it (the algorithm) is given augmented resources (in terms of faster processors) as compared to the resources available to the optimal algorithm. 
+[Hochbaum and Shmoys]() designed a PTAS for the partitioning of implicit-deadline sporadic task systems that behaves as follows. Given any positive constant 
+_s_, if an optimal algorithm can partition a given task system _τ_ upon _m_ processors, then the algorithm will, in time polynomial in the representation of _τ_, partition _τ_ upon _m_ processors each of speed (1 + _s_). This can be thought of as a _resource augmentation_ result: the algorithm can partition, in polynomial time, any task system that can be partitioned upon a given platform by an optimal algorithm, provided it (the algorithm) is given augmented resources (in terms of faster processors) as compared to the resources available to the optimal algorithm. 
 
 # [Task 4] Top-like Tool 
 
