@@ -84,7 +84,7 @@ We will use the following _approximate_ rubric to grade your work:
 | 1  (CBS) | 20% |
 | 2 (CASH) | 20% |		
 | 3 (Multiprocessor: Partitioned + Global) | 50%: 20% + 30% |
-| 3 (Top tool) | 10%|
+| 4 (Top tool) | 10%|
 
 Functionality apart, we will evaluate your submissions carefully along the following dimensions:
 + code style (i.e., readability and judicious choice of variable and function 
@@ -97,7 +97,7 @@ Remember that a substantial percentage of your grade will be assigned during
 the demos, so _prepare a nice demo!_ 
 
 # Submission instructions
-1. For Task 1 questions, submit your answers in a markdown file named `freertos-workings.md`
+
 2. In `changes.md`, record all of the changes that you needed to make to 
    FreeRTOS in order to support EDF and SRP. Make sure to include all the 
    files that you altered as well as the functions you changed, and also
