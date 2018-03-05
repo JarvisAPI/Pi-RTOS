@@ -69,7 +69,7 @@ Here you will design an interactive console application that displays, for each 
 top instantiation as well as periodic interactive top updates.
 
 The tool should be started by typing `top` in the console. Once your kernel 
-receives the string `top`, the display on the console to which the UART is connected is updated to show your top table, and no other messages that your tasks (or kernel) print to the console should show while top is running. The top tool is terminated by sending the command `top -t`. 
+receives the string `top`, the display on the console to which the UART is connected is updated to show your top table, and no other messages that your tasks (or kernel) print to the console should show while top is running. The top tool is terminated by sending the command `top -t`. Only one instance of the top tool should be running at a time: If the top tool is running and the user tries to instantiate another top instance (say by sending the string `top` again), then this request is ignored.  
 
 
 -------------------------------------------------------------------------------
