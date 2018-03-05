@@ -83,7 +83,7 @@ We will use the following _approximate_ rubric to grade your work:
 |:----:|:---:|
 | 1  (CBS) | 20% |
 | 2 (CASH) | 20% |		
-| 3 (Multiprocessor: Partitioned + Global) | 50%: 20% + 30% |
+| 3 (Multiprocessor: Partitioned + Global) | 50%: 30% + 20% |
 | 4 (Top tool) | 10%|
 
 Functionality apart, we will evaluate your submissions carefully along the following dimensions:
@@ -98,17 +98,15 @@ the demos, so _prepare a nice demo!_
 
 # Submission instructions
 
-1. In `changes.md`, record all of the changes that you needed to make to 
-   FreeRTOS in order to support EDF and SRP. Make sure to include all the 
+1. In `changes.md`, record all of the changes (and additions) that you  
+   made to FreeRTOS in order to support the functionality in every task. 
+   Make sure to include all the 
    files that you altered as well as the functions you changed, and also
    list the new functions that you added. 
 3. Create a markdown document named `design.md`. In this document, 
-   include the all your design choices, including the overrun management 
-   mechanism, as well as your EDF and SRP implementation strategies.
-4. Create a document named `quant.md` and include in it the general strategy 
-   you used to measure and evaluate the savings in the run-time stack space as
-   a result of implementing stack sharing. Also record your findings, and 
-   include graphs if necessary. 
+   include all your design choices, including brief explanation of how you
+   implemented each task. Flowcharts are nice here! 
+
 5. **Testing**. Create a markdown document named `testing.md`. For every task,
    include the general testing methodology you used, in addition 
    to all the test cases. For each test case, provide an explanation
