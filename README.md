@@ -41,7 +41,7 @@ You will be implementing a Polynomial Time Approximation Scheme (PTAS) for task 
 2. it runs in time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). 
 
 For instance, if the problem at hand is a 
-minimization problem, and we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(I, ɛ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ.  
+minimization problem, and we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(I, ɛ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ. A valid running time for A would be, for instance, O((n/ɛ)<sup>1/ɛ<sup>2</sup></sup>), where n := |I|. 
 
 
 # [Task 4] Top-like Tool 
