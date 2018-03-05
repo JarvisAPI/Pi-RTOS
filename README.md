@@ -36,9 +36,12 @@ processor using the uniprocessor EDF policy. Thus, the "temporal" dimension of t
 
 You will be using your EDF implementation from the previous project as the local scheduling policy. Since all processors are identical, it is rather safe to assume that any task can be allocated to any processor.
 
-You will be implementing a Polynomial Time Approximation Scheme (PTAS) for task partitioning. In general, an algorithm A is called a PTAS for a problem if (1) for every instance I of the problem and every given error tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user), the value of the solution returned by the algorithm, which we denote as A(I), is at most (1+ɛ) away from the value of the optimal solution, and (2) it runs in 
-time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). If the problem at hand is a 
-minimization problem, and we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(I, ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ.  
+You will be implementing a Polynomial Time Approximation Scheme (PTAS) for task partitioning. In general, an algorithm A is called a PTAS for a problem if for every instance I of the problem and every given error tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
+1. The value of the solution returned by the algorithm, which we denote as A(I), is at most (1+ɛ) away from the value of the optimal solution, and 
+2. it runs in time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). 
+
+For instance, if the problem at hand is a 
+minimization problem, and we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(I, ɛ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ.  
 
 
 # [Task 4] Top-like Tool 
