@@ -98,7 +98,8 @@ the demos, so _prepare a nice demo!_
 
 # Submission instructions
 
-1. In `changes.md`, record all of the changes (and additions) that you  
+1. In a markdown file with the name `changes.md`, record all of the changes 
+   (and additions) that you  
    made to FreeRTOS in order to support the functionality in every task. 
    Make sure to include all the 
    files that you altered as well as the functions you changed, and also
