@@ -24,16 +24,43 @@ CBS has a limitation in that when tasks do not fully use their budget, other tas
 completing early. CASH is an approach that addresses this limitation. Read the article titled [Capacity Sharing for Overrun Control](http://ieeexplore.ieee.org/document/896018/) that appeared in the IEEE Real-Time Systems Symposium in 2000 and implement the CASH method described by Caccamo, et al. Several real-time operating systems do implement schemes that are rather similar to CASH when they co-schedule hard real-time and soft real-time tasks.
 
 
-# [Task 3] Multiprocessor Real-time schemes
-In this part you will be considering only _implicit-deadline_ periodic tasks. You will implement both partitioned and global EDF in FreeRTOS running on top of our RPi. The goal of this part is to learn the algorithmic challenges of multiprocessor scheduling, as we as gain an appreciation of the implementation issues. 
+# [Task 3] Multiprocessor Real-time schemes (difficulty: challenging)
+In this part you will be considering only _implicit-deadline_ periodic tasks. You will implement both partitioned and global EDF in FreeRTOS running on top of our RPi. The goal of this part is to learn the algorithmic challenges of multiprocessor scheduling, as we as gain an appreciation of the implementation issues.
 
-Our ARM processor has _four_ identical cores, so we will be considering the _identical machines_ multiprocessor model. In computer architecture, this is called the Symmetric MultiProcessor (SMP) architecture. In the case of multi-core processors, the SMP architecture applies to the cores, treating them as separate processors. SMP systems are tightly coupled multiprocessor systems with a pool of homogeneous processors running independently of each other. Each processor, executing different programs and working on different sets of data, has the capability of sharing common resources (memory, I/O device, interrupt system and so on) that are connected using a system bus or a crossbar.  
+
+Our ARM processor has _four_ identical cores, so we will be considering the _identical machine_ multiprocessor model. In computer architecture, this is called the Symmetric MultiProcessor (SMP) architecture. In the case of multi-core processors, the SMP architecture applies to the cores, treating them as separate processors. SMP systems are tightly coupled multiprocessor systems with a pool of homogeneous processors running independently of each other. Each processor, executing different programs and working on different sets of data, has the capability of sharing common resources (memory, I/O device, interrupt system and so on) that are connected using a system bus or a crossbar.  
+
+
+_This task is fairly challenging!_ This is partly due to the scarcity of 
+available documentation on how our processor handles SMP. 
+The following two documents should you give you  
+1. [ARM Cortex-A Series Programmer’s Guide Version 4.0](http://cpen432.github.io/resources/arm-cortex-a-prog-guide-v4.pdf)
+2. [Cortex-A7 MPCore Technical Reference Manual](http://cpen432.github.io/resources/arm-cortex-a7-mpcore-technical-reference-manual.pdf)
+
+In particular, read chapters 13 and 18 of the Cortex-A7 programmer's guide 
+carefully. All the CPU registers relevant to SMP in our processor are detailed 
+in the technical reference manual. In particular, the Multiprocessor Affinity Register `MPIDR` register and the `CLUSTERID` field within.
+
+
+
+Your initial step should be to develop the code that _boots_ the 4 cores. 
+
+**You will need to extended the FreeRTOS port to support multi-core processing**. Some of the extensions include the ability to specify the core on which a task runs, remove a task from a processor or change the processor upon which the task is running (migration), etc. You may expose as many (programming) interfaces in order to complete this task in the cleanest possible way. Among the things that you should be thinking about are:
+1. Interrupt handling and timer functionality: Do I need a single interrupt controller/timer per core or is one shared such component(s) sufficient? 
+2. How to stop/start each core;
+3. Dispatching tasks to certain cores, task migration across cores.
+
+You need not worry about resource sharing, nor you need to worry about inter-task communication. You may assume that the tasks are independent and do not use share resources; this assignment is challenging enough the way it is.
+
+
+<!-- **Bonus:** If you are _really_ (like, _really_) up for a challenge, you may  -->
+<!-- want to consider implementing resource sharing. Two (or more) tasks running on different cores might share resources.   -->
 
 ## [Subtask A] Partitioned EDF
 The complexity in partitioned approaches to task scheduling comes from the 
 hardness of the task partitioning part (the "spatial" dimension), since this is a bin-packing problem and bin-packing is NP-Complete in the strong sense. Since exact solutions to the partitioning problem are computationally intractable (unless P = NP), our best
 next hope is an approximate solution with provable bounds on the quality of the solution. Luckily for us, such approximation schemes exist for the partitioning problem, and you will be implementing one such scheme (described below). Once an assignments of tasks to processor is found, we can simply run all the task allocated to one 
-processor using the preemtive uniprocessor EDF policy. Once a task is "pinned" to a processor after the task partitioning stage, the task executes for good on that processor and never migrates. A task might be preempted on its assigned processor but should resume on the same processor, however. Consequently, each processor can have its own ready queue. Thus, the "temporal" dimension of the partitioned scheduling problem is easy. Moreover, the tasks will be assumed to be independent (e.g., there is no resource sharing), so there is no need for the cores to communicate or synchronize, further simplifying matters. 
+processor using the preemptive uniprocessor EDF policy. Once a task is "pinned" to a processor after the task partitioning stage, the task executes for good on that processor and never migrates. A task might be preempted on its assigned processor but should resume on the same processor, however. Consequently, each processor can have its own ready queue. Thus, the "temporal" dimension of the partitioned scheduling problem is easy. Moreover, the tasks will be assumed to be independent (e.g., there is no resource sharing), so there is no need for the cores to communicate or synchronize, further simplifying matters. 
 
 You will be using your EDF implementation from the previous project as the local scheduling policy. Since all processors are identical, it is rather safe to assume that any task can be allocated to any processor.
 
