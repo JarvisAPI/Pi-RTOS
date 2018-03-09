@@ -24,28 +24,27 @@ CBS has a limitation in that when tasks do not fully use their budget, other tas
 completing early. CASH is an approach that addresses this limitation. Read the article titled [Capacity Sharing for Overrun Control](http://ieeexplore.ieee.org/document/896018/) that appeared in the IEEE Real-Time Systems Symposium in 2000 and implement the CASH method described by Caccamo, et al. Several real-time operating systems do implement schemes that are rather similar to CASH when they co-schedule hard real-time and soft real-time tasks.
 
 
-# [Task 3] Multiprocessor Real-time schemes (difficulty: challenging)
-In this part you will be considering only _implicit-deadline_ periodic tasks. You will implement both partitioned and global EDF in FreeRTOS running on top of our RPi. The goal of this part is to learn the algorithmic challenges of multiprocessor scheduling, as we as gain an appreciation of the implementation issues.
+# [Task 3] Supporting Multiprocessor Real-time Scheduling in FreeRTOS
+ In this part you will implement both partitioned and global EDF in FreeRTOS running on top of our RPi. You will be considering only _implicit-deadline_ periodic tasks, where D<sub>i</sup> = P<sub>i</sub> for every task i. The different multiprocessor scheduling approaches (partitioned vs. global) pose different classes of challenges, both theoretically and implementation-wise, and the goal of this part is to learn the algorithmic complexities of multiprocessor scheduling, as well as gain an understanding and appreciation of the practical issues and 
+ challenges related to supporting multiprocessor execution and scheduling.
 
 
 Our ARM processor has _four_ identical cores, so we will be considering the _identical machine_ multiprocessor model. In computer architecture, this is called the Symmetric MultiProcessor (SMP) architecture. In the case of multi-core processors, the SMP architecture applies to the cores, treating them as separate processors. SMP systems are tightly coupled multiprocessor systems with a pool of homogeneous processors running independently of each other. Each processor, executing different programs and working on different sets of data, has the capability of sharing common resources (memory, I/O device, interrupt system and so on) that are connected using a system bus or a crossbar.  
 
 
-_This task is fairly challenging!_ This is partly due to the scarcity of 
+_This task is fairly challenging!._ It is estimated that this task will consume at least 70% of your development effort. This is partly due to the scarcity of 
 available documentation on how our processor handles SMP. 
-The following two documents should you give you  
+However, the following two documents contain most (if not all) of the documentation I know of regarding SMP in the Cortex A7 processor: 
 1. [ARM Cortex-A Series Programmer’s Guide Version 4.0](http://cpen432.github.io/resources/arm-cortex-a-prog-guide-v4.pdf)
 2. [Cortex-A7 MPCore Technical Reference Manual](http://cpen432.github.io/resources/arm-cortex-a7-mpcore-technical-reference-manual.pdf)
 
-In particular, read chapters 13 and 18 of the Cortex-A7 programmer's guide 
-carefully. All the CPU registers relevant to SMP in our processor are detailed 
-in the technical reference manual. In particular, the Multiprocessor Affinity Register `MPIDR` register and the `CLUSTERID` field within.
+These documents should give you an excellent head start. In particular, read chapters 13 and 18 of the Cortex-A7 programmer's guide. All the CPU registers relevant to SMP are detailed in the technical reference manual; in particular, the Multiprocessor Affinity Register `MPIDR` and the `CLUSTERID` field within.
 
 
+_Your initial step should be to develop the code that _boots the 4 cores_. It is suggested that you initially do SMP development _bare-metal_, separately from FreeROTS. Once you get the 4 cores up and running, you can start porting (integrating) your code to the given FreeRTOS port incrementally.  
 
-Your initial step should be to develop the code that _boots_ the 4 cores. 
 
-**You will need to extended the FreeRTOS port to support multi-core processing**. Some of the extensions include the ability to specify the core on which a task runs, remove a task from a processor or change the processor upon which the task is running (migration), etc. You may expose as many (programming) interfaces in order to complete this task in the cleanest possible way. Among the things that you should be thinking about are:
+**You will need to extended the FreeRTOS port to support multi-core processing**. Some of the extensions include the ability to specify the core on which a task runs, remove a task from a processor, or change the processor upon which the task is running (migration), etc. You may expose as many (programming) interfaces in order to complete this task in the cleanest possible way. Among the things that you should be thinking about are:
 1. Interrupt handling and timer functionality: Do I need a single interrupt controller/timer per core or is one shared such component(s) sufficient? 
 2. How to stop/start each core;
 3. Dispatching tasks to certain cores, task migration across cores.
