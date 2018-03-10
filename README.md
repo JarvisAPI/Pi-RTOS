@@ -32,7 +32,7 @@ completing early. CASH is an approach that addresses this limitation. Read the a
 Our ARM processor has _four_ identical cores, so we will be considering the _identical machine_ multiprocessor model. In computer architecture, this is called the Symmetric MultiProcessor (SMP) architecture. In the case of multi-core processors, the SMP architecture applies to the cores, treating them as separate processors. SMP systems are tightly coupled multiprocessor systems with a pool of homogeneous processors running independently of each other. Each processor, executing different programs and working on different sets of data, has the capability of sharing common resources (memory, I/O device, interrupt system and so on) that are connected using a system bus or a crossbar.  
 
 
-_This task is fairly challenging!._ It is estimated that this task will consume at least 70% of your development effort. This is partly due to the scarcity of 
+_This task is fairly challenging!_ It is estimated that this task will consume at least 70% of your development effort for this programming assignment. This is partly due to the scarcity of 
 available documentation on how our processor handles SMP. 
 However, the following two documents contain most (if not all) of the documentation I know of regarding SMP in the Cortex A7 processor: 
 1. [ARM Cortex-A Series Programmer’s Guide Version 4.0](http://cpen432.github.io/resources/arm-cortex-a-prog-guide-v4.pdf)
@@ -47,9 +47,11 @@ _Your initial step should be to develop the code that _boots the 4 cores_. It is
 **You will need to extended the FreeRTOS port to support multi-core processing**. Some of the extensions include the ability to specify the core on which a task runs, remove a task from a processor, or change the processor upon which the task is running (migration), etc. You may expose as many (programming) interfaces in order to complete this task in the cleanest possible way. Among the things that you should be thinking about are:
 1. Interrupt handling and timer functionality: Do I need a single interrupt controller/timer per core or is one shared such component(s) sufficient? 
 2. How to stop/start each core;
-3. Dispatching tasks to certain cores, task migration across cores.
+3. Dispatching tasks to certain cores, as well as task migration across cores.
+4. Do you need a separate scheduler per core in partitioned scheduling? Is the
+   situation different in global scheduling? 
 
-You need not worry about resource sharing, nor you need to worry about inter-task communication. You may assume that the tasks are independent and do not use share resources; this assignment is challenging enough the way it is.
+You need not worry about resource sharing, nor do you need to worry about inter-task communication. You may assume that the tasks are independent and do not share resources; this assignment is challenging enough the way it is.
 
 
 <!-- **Bonus:** If you are _really_ (like, _really_) up for a challenge, you may  -->
@@ -58,17 +60,19 @@ You need not worry about resource sharing, nor you need to worry about inter-tas
 ## [Subtask A] Partitioned EDF
 The complexity in partitioned approaches to task scheduling comes from the 
 hardness of the task partitioning part (the "spatial" dimension), since this is a bin-packing problem and bin-packing is NP-Complete in the strong sense. Since exact solutions to the partitioning problem are computationally intractable (unless P = NP), our best
-next hope is an approximate solution with provable bounds on the quality of the solution. Luckily for us, such approximation schemes exist for the partitioning problem, and you will be implementing one such scheme (described below). Once an assignments of tasks to processor is found, we can simply run all the task allocated to one 
-processor using the preemptive uniprocessor EDF policy. Once a task is "pinned" to a processor after the task partitioning stage, the task executes for good on that processor and never migrates. A task might be preempted on its assigned processor but should resume on the same processor, however. Consequently, each processor can have its own ready queue. Thus, the "temporal" dimension of the partitioned scheduling problem is easy. Moreover, the tasks will be assumed to be independent (e.g., there is no resource sharing), so there is no need for the cores to communicate or synchronize, further simplifying matters. 
+next hope is an approximation scheme with provable bounds on the quality of the solutions returned. Luckily for us, such approximation schemes exist for the partitioning problem, and you will be implementing one such scheme (described below). 
+
+Once an assignment of tasks to processor is determined, we can simply run all the tasks allocated to one 
+processor using the preemptive uniprocessor EDF policy. Once a task is "pinned" to a processor after the task partitioning stage, the task executes for good on that processor and never migrates. A task might be preempted on its assigned processor but should resume on the same processor. Consequently, each processor can have its own ready queue. Thus, the "temporal" dimension of the partitioned scheduling problem is easy. Moreover, the tasks will be assumed to be independent (e.g., there is no resource sharing), so there is no need for the cores to communicate or synchronize, further simplifying matters. 
 
 You will be using your EDF implementation from the previous project as the local scheduling policy. Since all processors are identical, it is rather safe to assume that any task can be allocated to any processor.
 
-You will be implementing a Polynomial Time Approximation Scheme (PTAS) for task partitioning. In general, an algorithm A is called a **PTAS** for a problem if for every instance I of the problem and every given error tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
+You will be implementing a Polynomial Time Approximation Scheme (PTAS) for task partitioning. In general, an algorithm A is a **PTAS** for a problem if for every instance I of the problem at hand and every given error-tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
 1. The value of the solution returned by the algorithm, which we denote as A(I), is at most (1+ɛ) away from the value of the optimal solution, and 
-2. it runs in time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). 
+2. It runs in time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). [If the running time is also polynomial in 1/ɛ, then it is said to be a _Fully_ Polynomial-Time Approximation Scheme FPTAS]. 
 
 For instance, if the problem at hand is a 
-minimization problem, and we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(I, ɛ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ. A valid running time for A would be, for instance, O((n/ɛ)<sup>1/ɛ<sup>2</sup></sup>), where n := |I|. 
+minimization problem, and if we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(ɛ) (i.e, A is a function of ɛ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ. A valid running time for A would, for instance, be O((n/ɛ)<sup>1/ɛ<sup>2</sup></sup>), where n := |I|. 
 
 [Hochbaum and Shmoys](https://dl.acm.org/citation.cfm?id=7535) designed a PTAS for the partitioning of implicit-deadline sporadic task systems that behaves as follows. Given any positive constant 
 _s_, if an optimal algorithm can partition a given task system _τ_ upon _m_ processors, then the algorithm will, in time polynomial in the representation of _τ_, partition _τ_ upon _m_ processors each of speed (1 + _s_). This can be thought of as a _resource augmentation_ result: the algorithm can partition, in polynomial time, any task system that can be partitioned upon a given platform by an optimal algorithm, provided it (the algorithm) is given augmented resources (in terms of faster processors) as compared to the resources available to the optimal algorithm. [In fact, the Hochbaum and Shmoys PTAS was designed for minimizing the *makespan of nonpreemptive jobs* on identical machines, but their algorithm extends readily to the implicit-deadline sporadic task model. Their algorithm is such that for any instance I and ɛ>0, the makespan of I corresponding to the allocation returned by the 
@@ -84,12 +88,12 @@ For this task, you do not need to consider resource access.
 
 ## [Subtask B] Global EDF
 In contrast to partitioned scheduling, global scheduling permits task migration (i.e., different jobs of an individual task may execute upon different 
-processors) as well as job-migration: An individual job that is preempted may resume execution upon a different from the one upon which it had been executing prior to preemption. 
+processors) as well as job-migration: An individual job that is preempted may resume execution upon a different processor from the one upon which it had been executing prior to preemption. 
 
 Thus, for global EDF scheduling, a single ready queue is maintained for all tasks and processors. Tasks are inserted into the global queue in EDF order, and 
 the job at the head of the ready queue is dispatched to any processor.
 
-[here perform online admission control].
+[todo: here perform online admission control].
 
 # [Task 4] Top-like Tool
 Here you will design an interactive console application that displays, for each of the four cores (a column for each core), the tasks that are currently running on the core. This tool is particularly useful when the scheduling algorithm is global and tasks migrate across cores. The tool itself, when started, may be modeled as a periodic task that updates the display every _P_ seconds for some period _P_ of your choice. _The top task should not interfere with the hard-deadline tasks_. You may want to consider using a _server_ task to handle 
