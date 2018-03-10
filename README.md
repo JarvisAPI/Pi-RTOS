@@ -96,8 +96,7 @@ This is a theoretically significant result since it establishes that task partit
 The main idea of Chattopadhyay and Baruah's approach is to construct, for each identical multiprocessor platform upon which one will execute implicit-deadline sporadic task systems under partitioned EDF, a lookup table (LUT). Whenever a task system is to be partitioned upon this platform, this table is used to determine the assignment of the tasks to the processors.
 The LUT is constructed assuming that the utilizations of all the tasks have values from within a fixed set of distinct values V. When this LUT is later used to actually partition of a given task system τ, each task in τ may need to have its worst-case execution time (WCET) parameter inflated so that the resulting task utilization is indeed one of these distinct values in V. The challenge lies in choosing the values in V in such a manner that the amount of such inflation of WCET’s that is required is not too large. _You will have to read the paper carefully for the implementation details_.
 
-**Note:** The task partitioning approximation scheme that you are asked to implement is executed offline (prior to system operation), so a valid design choice is to write the partitioning functionality as a _tool_
-separate from freeROTS, and just feed freeRTOS, at system startup, the task set and the partitioning information produced by running your tool on the input task set. Make sure to document your design decisions.  
+**Note:** The task partitioning scheme that you are asked to implement is executed offline (prior to system operation), so a valid design choice is to write the partitioning functionality as a _tool_ that is entirely separate from freeROTS, and just feed freeRTOS, at system startup, the task set and the partitioning produced by running your tool on the input task set. Make sure to document your design decisions.
 
 ## [Subtask B] Global EDF
 In contrast to partitioned scheduling, global scheduling permits task migration (i.e., different jobs of an individual task may execute upon different 
@@ -109,11 +108,11 @@ the job at the head of the ready queue is dispatched to any processor.
 Implement global EDF and add all the required support in freeRTOS. Also add a simple control test of your choice. 
 
 # [Task 4] Top-like Tool
-Here you will design an interactive console application that displays, for each of the four cores (a column for each core), the tasks that are currently running on the core. This tool is particularly useful when the scheduling algorithm is global and tasks migrate across cores. The tool itself, when started, may be modeled as a periodic task that updates the display every _P_ seconds for some period _P_ of your choice. _The top task should not interfere with the hard-deadline tasks_. You may want to consider using a _server_ task to handle 
-top instantiation as well as periodic interactive top updates.
+Here you will design an interactive console application that displays, for each of the four cores (a column for each core?), the tasks that are currently running on the core. This tool is particularly useful when the scheduling algorithm is global and tasks migrate across cores. The tool itself, when started, may be modeled as a periodic task that updates the display every _P_ seconds for some period _P_ of your choice. _The top task should not interfere with the hard-deadline tasks_. You may want to consider using a _server_ task to handle 
+top instantiation as well as interactive top updates, which should be reflected on the console as soon as they take place. 
 
-The tool should be started by typing `top` in the console. Once your kernel 
-receives the string `top`, the display on the console to which the UART is connected is updated to show your top table, and no other messages that your tasks (or kernel) print to the console should show while top is running. The top tool is terminated by sending the command `top -t`. Only one instance of the top tool should be running at a time: If the top tool is running and the user tries to instantiate another top instance (say by sending the string `top` again), then this request is ignored.  
+The tool should be started via the command `top` that the user can send to the RPi through UART. Once your kernel 
+receives the string `top`, the display on the console to which the UART is connected is updated to show your top table, and no messages that your tasks (or kernel) print to the console (if any) should show while top is running. The top tool is terminated by sending the command `top -t` to the RPi. Only one instance of the top tool should be running at a time: If top is running and the user tries to instantiate another top instance (by sending the string `top` again), then this request is ignored. Add as many bells and whistles as you wish.  
 
 
 -------------------------------------------------------------------------------
