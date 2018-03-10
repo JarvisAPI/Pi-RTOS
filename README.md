@@ -96,7 +96,7 @@ This is a theoretically significant result since it establishes that task partit
 The main idea of Chattopadhyay and Baruah's approach is to construct, for each identical multiprocessor platform upon which one will execute implicit-deadline sporadic task systems under partitioned EDF, a lookup table (LUT). Whenever a task system is to be partitioned upon this platform, this table is used to determine the assignment of the tasks to the processors.
 The LUT is constructed assuming that the utilizations of all the tasks have values from within a fixed set of distinct values V. When this LUT is later used to actually partition of a given task system τ, each task in τ may need to have its worst-case execution time (WCET) parameter inflated so that the resulting task utilization is indeed one of these distinct values in V. The challenge lies in choosing the values in V in such a manner that the amount of such inflation of WCET’s that is required is not too large. _You will have to read the paper carefully for the implementation details_.
 
-**Note:** The task partitioning approximation scheme that you are to implement is executed offline (prior to system operation), so a valid design choice is to write the partitioning functionality as a tool
+**Note:** The task partitioning approximation scheme that you are asked to implement is executed offline (prior to system operation), so a valid design choice is to write the partitioning functionality as a _tool_
 separate from freeROTS, and just feed freeRTOS, at system startup, the task set and the partitioning information produced by running your tool on the input task set. Make sure to document your design decisions.  
 
 ## [Subtask B] Global EDF
