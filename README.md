@@ -109,7 +109,7 @@ In contrast to partitioned scheduling, global scheduling permits task migration 
 processors), as well as job-migration: An individual job that is preempted may resume execution upon a different processor from the one upon which it had been executing prior to preemption. 
 
 Thus, for global EDF scheduling, a single ready queue is maintained for all tasks and processors. Tasks are inserted into the global queue in EDF order, and 
-the job at the head of the ready queue is dispatched to any processor.
+the job at the head of the ready queue is dispatched to any processor. 
 
 Implement global EDF and add all the required support in freeRTOS. Also add a simple control test of your choice. 
 
