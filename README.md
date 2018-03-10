@@ -73,12 +73,16 @@ You will be implementing a Polynomial Time Approximation Scheme (PTAS) for task 
 
 For instance, if the problem at hand is a 
 minimization problem, and if we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(ɛ) (i.e, A is a function of ɛ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ.The running time of algorithm A is a function f(|I|, 1/ɛ) that is polynomial in |I|. A valid running time for A would, for instance, be O((n/ɛ)<sup>1/ɛ<sup>2</sup></sup>), where n := |I|, or even O(n<sup>exp(1/ε)</sup>). Thus, as the 
-required accuracy ɛ approaches 0, the accuracy of the solution approaches the optimal, but the running time also approaches infinity. This gives a clear tradeoff between running time and the quality of approximation.
+tolerable error ɛ approaches 0, the accuracy of the solution approaches optimal, but the running time approaches infinity. This gives a clear tradeoff between running time and the quality of approximation.
 
 As an example of a PTAS, consider the _Euclidean_ Traveling Salesman Problem (TSP): Given _n_ points in ℝ<sup>2</sup> (the plane) with Euclidean distances, i.e., d(x, y) = ||x − y||<sub>2</sub> for points x, y ∈ ℝ<sup>2</sup>, what is a shortest tour that visits each of the _n_ points and returns to the original point? There is a well known PTAS for this problem by Sanjeev Arora [[link to paper](https://dl.acm.org/citation.cfm?doid=290179.290180)] that behaves as follows: For every fixed c > 1 and given any _n_ nodes in ℝ<sup>2</sup>, a randomized version of the scheme finds a (1 + 1/c)-approximation to the optimum traveling salesman tour in O(n (log n)<sup>O(c)</sup>) time. 
 
 
-Some approximation algorithms provide  
+Some approximation algorithms provide a solution for a _relaxed instance_ of the problem. For example, in packing problems, an algorithm may pack the items in bins whose sizes are slightly larger than the original. This type of algorithm is called a _dual_ approximation algorithm, or approximation with _resource augmentation_. Since most scheduling and resource allocation problems are packing problems at heart, a significant number of approximation schemes in the scheduling domain are resource augmentation approximations. A number of approximate feasibility tests for the schedulability of sporadic real-time tasks on a single processor have been developed as PTASes in the resource augmentation sense: The test is an approximation with respect to the amount of processor capacity that must be "sacrificed" for the test to become exact. For instance, [Fisher and Baruah](http://www.cs.wayne.edu/~fishern/papers/static_ptas_bounded.pdf) designed an approximation scheme to the response-time analysis whose inexactness may be described as follows: 
+
+> If the test returns "feasible", then the task set is guaranteed to be feasible on the processor for which it had been specified. If the test returns "infeasible", the task set is guaranteed to be infeasible on a slower processor, of computing capacity (1 - ε) times the computing capacity of the processor for which the task system had been specified.
+
+In other words, if the test returns "infeasible", then the _more difficult task set where the execution time of every task is inflated by 1/(1 - ε)_ is not feasible on a unit speed processor, but the test cannot tell whether the original (easier to schedule) instance is feasible. 
 
 
 [Hochbaum and Shmoys](https://dl.acm.org/citation.cfm?id=7535) designed a PTAS for the partitioning of implicit-deadline sporadic task systems. Their algorithm behaves as follows. Given any positive constant 
