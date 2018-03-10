@@ -69,12 +69,12 @@ You will be using your EDF implementation from the previous project as the local
 
 You will be implementing a Polynomial Time Approximation Scheme (PTAS) for task partitioning. In general, an algorithm A is a **PTAS** for a problem if for every instance I of the problem at hand and every given error-tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
 1. The value of the solution returned by the algorithm, which we denote as A(I), is at most (1+ɛ) away from the value of the optimal solution, and 
-2. It runs in time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). [If the running time is also polynomial in 1/ɛ, then it is said to be a _Fully_ Polynomial-Time Approximation Scheme FPTAS]. 
+2. It runs in time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). [If the running time is also polynomial in 1/ɛ, then the algorithm is said to be a _Fully_ Polynomial-Time Approximation Scheme FPTAS]. 
 
 For instance, if the problem at hand is a 
 minimization problem, and if we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(ɛ) (i.e, A is a function of ɛ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ. A valid running time for A would, for instance, be O((n/ɛ)<sup>1/ɛ<sup>2</sup></sup>), where n := |I|. 
 
-[Hochbaum and Shmoys](https://dl.acm.org/citation.cfm?id=7535) designed a PTAS for the partitioning of implicit-deadline sporadic task systems that behaves as follows. Given any positive constant 
+[Hochbaum and Shmoys](https://dl.acm.org/citation.cfm?id=7535) designed a PTAS for the partitioning of implicit-deadline sporadic task systems. Their algorithm behaves as follows. Given any positive constant 
 _s_, if an optimal algorithm can partition a given task system _τ_ upon _m_ processors, then the algorithm will, in time polynomial in the representation of _τ_, partition _τ_ upon _m_ processors each of speed (1 + _s_). This can be thought of as a _resource augmentation_ result: the algorithm can partition, in polynomial time, any task system that can be partitioned upon a given platform by an optimal algorithm, provided it (the algorithm) is given augmented resources (in terms of faster processors) as compared to the resources available to the optimal algorithm. [In fact, the Hochbaum and Shmoys PTAS was designed for minimizing the *makespan of nonpreemptive jobs* on identical machines, but their algorithm extends readily to the implicit-deadline sporadic task model. Their algorithm is such that for any instance I and ɛ>0, the makespan of I corresponding to the allocation returned by the 
 algorithm, C<sub>max</sub>(I), is such that C<sub>max</sub>(I) ≤ (1+ɛ)OPT(I), and it runs in time O((n/ɛ)<sup>1/ɛ<sup>2</sup></sup>).]
 
