@@ -41,13 +41,14 @@ However, the following two documents contain most (if not all) of the documentat
 These documents should give you an excellent head start. In particular, read chapters 13 and 18 of the Cortex-A7 programmer's guide. All the CPU registers relevant to SMP are detailed in the technical reference manual; in particular, the Multiprocessor Affinity Register `MPIDR` and the `CLUSTERID` field within.
 
 
-_Your initial step should be to develop the code that _boots the 4 cores_. It is suggested that you initially do SMP development _bare-metal_, separately from FreeROTS. Once you get the 4 cores up and running, you can start porting (integrating) your code to the given FreeRTOS port incrementally.  
+_Your initial step should be to develop the code that boots the 4 cores_. It is suggested that you initially do SMP development _bare-metal_, separately from FreeROTS. Once you get the 4 cores up and running, you can start porting (integrating) your code to the given FreeRTOS port incrementally.  
 
 
 **You will need to extended the FreeRTOS port to support multi-core processing**. Some of the extensions include the ability to specify the core on which a task runs, remove a task from a processor, or change the processor upon which the task is running (migration), etc. You may expose as many (programming) interfaces in order to complete this task in the cleanest possible way. Among the things that you should be thinking about are:
-1. Interrupt handling and timer functionality: Do I need a single interrupt controller/timer per core or is one shared such component(s) sufficient? 
+
+1. Interrupt handling and timer functionality: Do we need a single interrupt controller/timer per core or is one shared interrupt controller/timer sufficient? 
 2. How to stop/start each core;
-3. Dispatching tasks to certain cores, as well as task migration across cores.
+3. Dispatching tasks to certain cores, as well as task migration across cores;
 4. Do you need a separate scheduler per core in partitioned scheduling? Is the
    situation different in global scheduling? 
 
@@ -95,6 +96,8 @@ This is a theoretically significant result since it establishes that task partit
 The main idea of Chattopadhyay and Baruah's approach is to construct, for each identical multiprocessor platform upon which one will execute implicit-deadline sporadic task systems under partitioned EDF, a lookup table (LUT). Whenever a task system is to be partitioned upon this platform, this table is used to determine the assignment of the tasks to the processors.
 The LUT is constructed assuming that the utilizations of all the tasks have values from within a fixed set of distinct values V. When this LUT is later used to actually partition of a given task system τ, each task in τ may need to have its worst-case execution time (WCET) parameter inflated so that the resulting task utilization is indeed one of these distinct values in V. The challenge lies in choosing the values in V in such a manner that the amount of such inflation of WCET’s that is required is not too large. _You will have to read the paper carefully for the implementation details_.
 
+**Note:** The task partitioning approximation scheme that you are to implement is executed offline (prior to system operation), so a valid design choice is to write the partitioning functionality as a tool
+separate from freeROTS, and just feed freeRTOS, at system startup, the task set and the partitioning information produced by running your tool on the input task set. Make sure to document your design decisions.  
 
 ## [Subtask B] Global EDF
 In contrast to partitioned scheduling, global scheduling permits task migration (i.e., different jobs of an individual task may execute upon different 
