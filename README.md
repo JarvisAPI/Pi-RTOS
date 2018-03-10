@@ -25,7 +25,7 @@ completing early. CASH is an approach that addresses this limitation. Read the a
 
 
 # [Task 3] Supporting Multiprocessor Real-time Scheduling in FreeRTOS
- In this part you will implement both partitioned and global EDF in FreeRTOS running on top of our RPi. You will be considering only _implicit-deadline_ periodic tasks, where D<sub>i</sub> = P<sub>i</sub> for every task i. The different multiprocessor scheduling approaches (partitioned vs. global) pose different classes of challenges, both theoretically and implementation-wise, and the goal of this part is to learn the algorithmic complexities of multiprocessor scheduling, as well as gain an understanding and appreciation of the practical issues and 
+ In this part you will implement both partitioned and global EDF in FreeRTOS running on top of RPi. You will be considering only _implicit-deadline_ periodic tasks, where D<sub>i</sub> = P<sub>i</sub> for every task i. The different multiprocessor scheduling approaches (partitioned vs. global) pose different classes of challenges, both theoretically and implementation-wise, and the goal of this part is to learn the algorithmic complexities of multiprocessor scheduling, as well as gain an understanding and appreciation of the practical issues and 
  challenges related to supporting multiprocessor execution and scheduling.
 
 
@@ -86,7 +86,7 @@ Some approximation algorithms provide a solution for a _relaxed instance_ of the
 In other words, if the test returns "infeasible", then the test asserts with certainty that the _more difficult task set where the execution time of every task is inflated by 1/(1 - ε)_ is not feasible on a unit speed processor, but it cannot tell whether the original (easier to schedule) instance is feasible. The main result is the following: For any ε in the range (0, 1), there is an algorithm A(ε) that has run-time O(n<sup>2</sup>/ε) (contrast this running time with that of the pseudopolynomial-time exact test) and exhibits the following behavior: 
 
 On any synchronous periodic or sporadic task system τ with constrained deadlines:
-* If τ is deadline-monotonic (DM) infeasible on a unit-capacity processor then Algorithm A(ε) correctly identifies it as being dm-infeasible;
+* If τ is deadline-monotonic (DM) infeasible on a unit-capacity processor then Algorithm A(ε) correctly identifies it as being DM-infeasible;
 * if τ is DM-feasible on a processor of computing capacity (1 − ε) then Algorithm A(ε) correctly identifies it as being DM-feasible;
 * else Algorithm A(ε) may identify τ as being either feasible or infeasible.
 
