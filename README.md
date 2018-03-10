@@ -83,7 +83,7 @@ Some approximation algorithms provide a solution for a _relaxed instance_ of the
 
 > If the test returns "feasible", then the task set is guaranteed to be feasible on the processor for which it had been specified. If the test returns "infeasible", the task set is guaranteed to be infeasible on a slower processor, of computing capacity (1 - ε) times the computing capacity of the processor for which the task system had been specified.
 
-In other words, if the test returns "infeasible", then the _more difficult task set where the execution time of every task is inflated by 1/(1 - ε)_ is not feasible on a unit speed processor, but the test cannot tell whether the original (easier to schedule) instance is feasible. 
+In other words, if the test returns "infeasible", then the test asserts with certainty that the _more difficult task set where the execution time of every task is inflated by 1/(1 - ε)_ is not feasible on a unit speed processor, but it cannot tell whether the original (easier to schedule) instance is feasible. 
 
 
 [Hochbaum and Shmoys](https://dl.acm.org/citation.cfm?id=7535) designed a PTAS for the partitioning of implicit-deadline sporadic task systems. Their algorithm behaves as follows. Given any positive constant 
