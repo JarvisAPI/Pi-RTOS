@@ -95,16 +95,15 @@ This is a theoretically significant result since it establishes that task partit
 The main idea of Chattopadhyay and Baruah's approach is to construct, for each identical multiprocessor platform upon which one will execute implicit-deadline sporadic task systems under partitioned EDF, a lookup table (LUT). Whenever a task system is to be partitioned upon this platform, this table is used to determine the assignment of the tasks to the processors.
 The LUT is constructed assuming that the utilizations of all the tasks have values from within a fixed set of distinct values V. When this LUT is later used to actually partition of a given task system τ, each task in τ may need to have its worst-case execution time (WCET) parameter inflated so that the resulting task utilization is indeed one of these distinct values in V. The challenge lies in choosing the values in V in such a manner that the amount of such inflation of WCET’s that is required is not too large. _You will have to read the paper carefully for the implementation details_.
 
-For this task, you do not need to consider resource access. 
 
 ## [Subtask B] Global EDF
 In contrast to partitioned scheduling, global scheduling permits task migration (i.e., different jobs of an individual task may execute upon different 
-processors) as well as job-migration: An individual job that is preempted may resume execution upon a different processor from the one upon which it had been executing prior to preemption. 
+processors), as well as job-migration: An individual job that is preempted may resume execution upon a different processor from the one upon which it had been executing prior to preemption. 
 
 Thus, for global EDF scheduling, a single ready queue is maintained for all tasks and processors. Tasks are inserted into the global queue in EDF order, and 
 the job at the head of the ready queue is dispatched to any processor.
 
-[todo: here perform online admission control].
+Implement global EDF and add all the required support in freeRTOS. Also add a simple control test of your choice. 
 
 # [Task 4] Top-like Tool
 Here you will design an interactive console application that displays, for each of the four cores (a column for each core), the tasks that are currently running on the core. This tool is particularly useful when the scheduling algorithm is global and tasks migrate across cores. The tool itself, when started, may be modeled as a periodic task that updates the display every _P_ seconds for some period _P_ of your choice. _The top task should not interfere with the hard-deadline tasks_. You may want to consider using a _server_ task to handle 
@@ -148,8 +147,7 @@ the demos, so _prepare a nice demo!_
    list the new functions that you added. 
 3. Create a markdown document named `design.md`. In this document, 
    include all your design choices, including brief explanation of how you
-   implemented each task. Flowcharts are nice here! 
-
+   implemented partitioned and global EDF. Detail the feasibility tests you used in each. Flowcharts are nice here! 
 5. **Testing**. Create a markdown document named `testing.md`. For every task,
    include the general testing methodology you used, in addition 
    to all the test cases. For each test case, provide an explanation
@@ -161,7 +159,3 @@ the demos, so _prepare a nice demo!_
    of the things you could do to improve your implementations, 
    have you had the time to do them. This includes optimizations, 
    decision choices, and basically anything you deemed lower priority `TODO`.
-
-
-
-
