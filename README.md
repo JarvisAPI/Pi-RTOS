@@ -38,7 +38,7 @@ However, the following two documents contain most (if not all) of the documentat
 1. [ARM Cortex-A Series Programmer’s Guide Version 4.0](http://cpen432.github.io/resources/arm-cortex-a-prog-guide-v4.pdf)
 2. [Cortex-A7 MPCore Technical Reference Manual](http://cpen432.github.io/resources/arm-cortex-a7-mpcore-technical-reference-manual.pdf)
 
-These documents should give you an excellent head start. In particular, read chapters 13 and 18 of the Cortex-A7 programmer's guide. All the CPU registers relevant to SMP are detailed in the technical reference manual; in particular, the Multiprocessor Affinity Register `MPIDR` and the `CLUSTERID` field within.
+These documents should give you a good head start. Read chapters 13 and 18 of the Cortex-A7 programmer's guide. All the CPU registers relevant to SMP are detailed in the technical reference manual; in particular, the Multiprocessor Affinity Register `MPIDR` and the `CLUSTERID` field within.
 
 
 _Your initial step should be to develop the code that boots the 4 cores_. It is suggested that you initially do SMP development _bare-metal_, separately from FreeROTS. Once you get the 4 cores up and running, you can start porting (integrating) your code to the given FreeRTOS port incrementally.  
