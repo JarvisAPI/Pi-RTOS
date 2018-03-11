@@ -130,10 +130,10 @@ We will use the following _approximate_ rubric to grade your work:
 
 | Task | Grade Contribution |		
 |:----:|:---:|
-| 1  (CBS) | 20% |
-| 2 (CASH) | 20% |		
-| 3 (Multiprocessor: Partitioned + Global) | 50%: 30% + 20% |
-| 4 (Top tool) | 10%|
+| 1  (CBS) | 25% |
+| 2 (CASH) | 15% |		
+| 3 (Multiprocessor: Partitioned + Global) | 40%: 25% + 15% |
+| 4 (Top tool) | 20%|
 
 Functionality apart, we will evaluate your submissions carefully along the following dimensions:
 + code style (i.e., readability and judicious choice of variable and function 
