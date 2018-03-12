@@ -81,6 +81,10 @@ error tolerance parameter, and which trades accuracy for running-time_. Such sch
 **Note:** All the task partitioning scheme that you are asked to implement are executed _offline_ (i.e., prior to system operation), so a valid design choice is to write the partitioning functionality as a _tool_ that is entirely separate from FreeROTS, and just feed FreeRTOS, at system startup, the task set and the partitioning produced by running your tool on the input task set. You may use any programming language for your partitioning tool. Make sure to provide detailed usage and compilation instructions for your tool, preferably a script for the latter. If your tool does not compile or we cannot figure out how to use it then we will not grade it. Again, make sure to document and justify your design choices.
 
 ### [Subtask A.i: Exact Task Partitioning through ILP]
+In general, Linear programming (LP) is a method to achieve the best outcome (such as maximum profit or lowest cost) in a mathematical model whose requirements are represented by linear relationships. A linear programming problem may be defined as the problem of 
+maximizing or minimizing a linear function subject to linear constraints. The constraints may be equalities or inequalities [Wiki](https://en.wikipedia.org/wiki/Linear_programming). 
+
+>> For instance, consider the following optimization problem. A company makes two products (X and Y) using two machines (A and B). Each unit of X that is produced requires 50 minutes processing time on machine A and 30 minutes processing time on machine B. Each unit of Y that is produced requires 24 minutes processing time on machine A and 33 minutes processing time on machine B. At the start of the current week there are 30 units of X and 90 units of Y in stock. Available processing time on machine A is forecast to be 40 hours and on machine B is forecast to be 35 hours. The demand for X in the current week is forecast to be 75 units and for Y is forecast to be 95 units. Company policy is to maximise the combined sum of the units of X and the units of Y in stock at the end of the week.
 
 
 ### [Subtask A.ii: Approximate Task Partitioning through FFD]
