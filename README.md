@@ -98,15 +98,18 @@ Now what is the range of values that each of variables x and y may assume? Can t
 
 * _Each unit of X that is produced requires 50 minutes processing time on machine A and 30 minutes processing time on machine B_ **and** _each unit of Y that is produced requires 24 minutes processing time on machine A and 33 minutes processing time on machine B_.
   Looking at each machine separately, we find that producing x and y units of each product would demand 50x + 24y minutes on machine A, which should not exceed the 40 hour processing time available on machine A, and also we need 30x + 33y minutes on machine B, which should not exceed the 35 hour processing time available on machine B. Thus, we have the following two constraints
-		```
+  
+```
 		50x + 24y ≤ 40 × 60 (mins/h)
 		30x + 33y ≤ 35 × 60 (mins/h)
-		```
+```
+
 * Finally, the number of units produced of each of X and Y, in addition to the stock available already, should meet the forecast demand, thus we also have:
-		```
+
+```
 		x ≥ 75 (demand) - 30 (initial stock) 
 		y ≥ 95 (demand) - 90 (initial stock)
-		```
+```
 
 Thus the combined linear program may be written as follows:
 
