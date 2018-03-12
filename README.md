@@ -76,7 +76,7 @@ You will be implementing and comparing **two** task partitioning schemes: An _ex
 First Fit Decreasing (FFD) heuristic, which is an approximation. 
 _For extra credit, you may implement an optional approximate scheme that returns a partitioning whose quality is specified by a given user-supplied 
 error tolerance parameter, and which trades accuracy for running-time_. Such schemes are called are generally called Polynomial-time Approximation Schemes 
-(PTAS) because the running time is polynomial is the size of the instance (but in the error parameter). See below for details.
+(PTAS) because the running time is polynomial is the size of the instance (but generally not in the error parameter). See below for details.
 
 ### [Optional: A PTAS for task partitioning] 
 In general, an algorithm A is a **PTAS** for a problem if for every instance I of the problem at hand and every given error-tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
