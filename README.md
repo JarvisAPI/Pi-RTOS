@@ -54,6 +54,10 @@ _Your initial step should be to develop the code that boots the 4 cores_. It is 
 
 You need not worry about resource sharing, nor do you need to worry about inter-task communication. You may assume that the tasks are independent and do not share resources; this assignment is challenging enough the way it is.
 
+**Important Note:** The kernel itself is a task, so the decision of which 
+core runs the kernel task at any time should be considered in any 
+multiprocessor scheduling scheme. _For simplicity, always execute the kernel 
+on core 0 so that it is pinned to that core forever, even in global scheduling_. For the purposes of this assignment there is no need to migrate the kernel.
 
 <!-- **Bonus:** If you are _really_ (like, _really_) up for a challenge, you may  -->
 <!-- want to consider implementing resource sharing. Two (or more) tasks running on different cores might share resources.   -->
@@ -66,9 +70,16 @@ next hope is an approximation scheme with provable bounds on the quality of the 
 Once an assignment of tasks to processor is determined, we can simply run all the tasks allocated to one 
 processor using the preemptive uniprocessor EDF policy. Once a task is "pinned" to a processor after the task partitioning stage, the task executes for good on that processor and never migrates. A task might be preempted on its assigned processor but should resume on the same processor. Consequently, each processor can have its own ready queue. Thus, the "temporal" dimension of the partitioned scheduling problem is relatively easy, since uniprocessor scheduling approaches may be leveraged directly. Moreover, the tasks will be assumed to be independent (e.g., there is no resource sharing), so there is no need for the cores to communicate or synchronize, further simplifying matters. 
 
-Since all processors are identical, it is rather safe to assume that any task can be allocated to any processor. You will be using your EDF implementation from the previous project as the local scheduling policy. 
+Since all processors are identical, it is rather safe to assume that any task can be allocated to any processor. You will be using your EDF implementation from the previous project as the local scheduling policy.
 
-You will be implementing a Polynomial Time Approximation Scheme (PTAS) for task partitioning. In general, an algorithm A is a **PTAS** for a problem if for every instance I of the problem at hand and every given error-tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
+You will be implementing and comparing **two** task partitioning schemes: An _exact_ scheme based on solving an Integer Linear Program (ILP), and the 
+First Fit Decreasing (FFD) heuristic, which is an approximation. 
+_For extra credit, you may implement an optional approximate scheme that returns a partitioning whose quality is specified by a given user-supplied 
+error tolerance parameter, and which trades accuracy for running-time_. Such schemes are called are generally called Polynomial-time Approximation Schemes 
+(PTAS) because the running time is polynomial is the size of the instance (but in the error parameter). See below for details.
+
+### [Optional: A PTAS for task partitioning] 
+In general, an algorithm A is a **PTAS** for a problem if for every instance I of the problem at hand and every given error-tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
 1. The value of the solution returned by the algorithm, which we denote as A(I), is at most (1+ɛ) away from the value of the optimal solution, and 
 2. It runs in time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). [If the running time is also polynomial in 1/ɛ, then the algorithm is said to be a _Fully_ Polynomial-Time Approximation Scheme FPTAS]. 
 
@@ -133,7 +144,7 @@ We will use the following _approximate_ rubric to grade your work:
 | 1  (CBS) | 25% |
 | 2 (CASH) | 15% |		
 | 3 (Multiprocessor: Partitioned + Global) | 40%: 25% + 15% |
-| 4 (Top tool) | 20%|
+| 4 (Top tool) | 20% |
 
 Functionality apart, we will evaluate your submissions carefully along the following dimensions:
 + code style (i.e., readability and judicious choice of variable and function 
