@@ -78,6 +78,14 @@ _For extra credit, you may implement an optional approximate scheme that returns
 error tolerance parameter, and which trades accuracy for running-time_. Such schemes are called are generally called Polynomial-time Approximation Schemes 
 (PTAS) because the running time is polynomial is the size of the instance (but generally not in the error parameter). See below for details.
 
+**Note:** All the task partitioning scheme that you are asked to implement are executed _offline_ (i.e., prior to system operation), so a valid design choice is to write the partitioning functionality as a _tool_ that is entirely separate from FreeROTS, and just feed FreeRTOS, at system startup, the task set and the partitioning produced by running your tool on the input task set. You may use any programming language for your partitioning tool. Make sure to provide detailed usage and compilation instructions for your tool, preferably a script for the latter. If your tool does not compile or we cannot figure out how to use it then we will not grade it. Again, make sure to document and justify your design choices.
+
+### [Subtask A.i: Exact Task Partitioning through ILP]
+
+
+### [Subtask A.ii: Approximate Task Partitioning through FFD]
+
+
 ### [Optional: A PTAS for task partitioning] 
 In general, an algorithm A is a **PTAS** for a problem if for every instance I of the problem at hand and every given error-tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
 1. The value of the solution returned by the algorithm, which we denote as A(I), is at most (1+ɛ) away from the value of the optimal solution, and 
@@ -113,7 +121,6 @@ This is a theoretically significant result since it establishes that task partit
 The main idea of Chattopadhyay and Baruah's approach is to construct, for each identical multiprocessor platform upon which one will execute implicit-deadline sporadic task systems under partitioned EDF, a lookup table (LUT). Whenever a task system is to be partitioned upon this platform, this table is used to determine the assignment of the tasks to the processors.
 The LUT is constructed assuming that the utilizations of all the tasks have values from within a fixed set of distinct values V. When this LUT is later used to actually partition of a given task system τ, each task in τ may need to have its worst-case execution time (WCET) parameter inflated so that the resulting task utilization is indeed one of these distinct values in V. The challenge lies in choosing the values in V in such a manner that the amount of such inflation of WCET’s that is required is not too large. _You will have to read the paper carefully for the implementation details_.
 
-**Note:** The task partitioning scheme that you are asked to implement is executed offline (prior to system operation), so a valid design choice is to write the partitioning functionality as a _tool_ that is entirely separate from freeROTS, and just feed freeRTOS, at system startup, the task set and the partitioning produced by running your tool on the input task set. Make sure to document your design decisions.
 
 ## [Subtask B] Global EDF
 In contrast to partitioned scheduling, global scheduling permits task migration (i.e., different jobs of an individual task may execute upon different 
