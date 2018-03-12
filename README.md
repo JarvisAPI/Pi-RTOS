@@ -122,7 +122,27 @@ Thus the combined linear program may be written as follows:
 		y ≥ 5
 ```
 
-The constraints define the _feasibility region_ of the LP (which, here, is a subset of ℝ<sup>2</sup>). 
+The constraints define the _feasibility region_ of the LP (which, here, is a subset of ℝ<sup>2</sup>), and is a convex polytope, which is the set defined as the intersection of the finitely many half spaces defined by the inequalities. If the LP is feasible, then an optimal solution would be a point lying on the boundary of constraint-defined convex polytope, and is really one of the vertices (intersection points of the half spaces) of the polytope.
+
+
+There are many algorithms to solve LPs, the most famous of which is the [Simplex Algorithm](https://en.wikipedia.org/wiki/Simplex_algorithm) (and all its variants). Although the Simplex algorithm runs in exponential time in the worst-case, it shows excellent average case behavior, and is usually preferred to other polynomial-time methods, such as _interior point_ methods (the LP problem is poly-time solvable). Note, however, that in example LP problem above, we did not insist on integer solutions, so an optimal solution to this LP could very well be 
+fractional. To add integrality constraints, one has to further restrict the decision variables x and y to be positive integers. This change dramatically changes the complexity of the problem; the problem becomes that of Integer Linear Programming (ILP) [Wiki](https://en.wikipedia.org/wiki/Integer_programming), and is NP-Complete in the strong sense. The LP algorithms mentioned above are no longer applicable when at least one of the decision variables is required to be an integer. There are exact solution methods for ILPs but, as you may expect, they are all exponential-time. 
+
+
+In this part, you will be considering exact solution methods for ILPs (as you will formulate the task partitioning problem as an ILP), _but you will not be concerned here about how the solution methods work_. Instead, you will be using ready-made LP solver that you can use to solve your ILP 
+_programatically_. That is, we will be using (I)LP solvers that expose an API through which you can specify your LP and invoke functions to return optimal solutions (if such solutions exist). There are many LP solver out there, but one of the best freely available API-based ILP solver is `lp_solve` [link to lp_solve](http://lpsolve.sourceforge.net/5.5/). `lp_solve` is a free (see LGPL for the GNU lesser general public license) linear (integer) programming solver based on the revised simplex method and the Branch-and-bound method for the integers. It can also be called as a library from different languages like C, VB, .NET, Delphi, Excel, Java. It can also be called from AMPL, MATLAB, O-Matrix, Scilab, Octave, R via a driver program. `lp_solve` is written in ANSI C and can be compiled on many different platforms like linux and WINDOWS. Basically, lp_solve is a library, a set of routines, called the API that can be called from almost any programming language to solve MILP problems. There are several ways to pass the data to the library: Via the API, Via input files, and Via an IDE (all the details on how to use `lp_solve` are contained in the link above). 
+
+
+A commercial API-based ILP solver is [Gurobi](http://www.gurobi.com). This is regarded as the most reliable and extensive ILP solver available. The Gurobi API is available in many programming languages, including C, C++, Java, .NET, Python, MATLAB, and R. This is a _really_ expensive optimization API, but, luckily for us, they have an educational license that gives you access to the full fledged Gurobi for _free_. However, in order to authenticate that you are affiliated with an educational institute, the license should be activated from within the UBC network, so make you sure that you are on campus when activating your Gurobi license or just be connected to the UBC network through VPN. The documentation, including installation (and license activation) instructions and the API is comprehensive, and is made available for every supported programming language.
+
+**Note and Disclaimer:** I am in no way affiliated with Gurobi, and you are not restricted to using Gurobi, or even `lp_solve`. You may wish to use other LP solver out there; you have complete freedom to do so.
+
+**ILP formulation of the task partitioning problem**
+The first step is to formulate the task partitioning problem as an ILP that you can feed to the ILP solver. Because (1) we are using EDF as the local (per core) scheduling policy, (2) our cores are identical, and (3) we are considering implicit-deadline tasks, the LL EDF utilization bound is both sufficient and necessary, and therefore you may view each core as a bin of unit capacity. The items to be packed into each core are therefore the task utilizations u<sub>1</sub>, ..., u<sub>n</sub>, where n is the number of tasks. 
+
+We wish to find an assignment of tasks to cores so that no core overflows. If no such assignment exists, then you should declare that the task set not schedulable. To represent an assignment of tasks to processors, one may utilize a variable `x<sub>i,j</sub>` such that x<sub>i,j</sub> = 1 if task i assigned to processor j, and 0 otherwise. If the number of processors is m, then we will need nm variables. These variables will be the decision variables of your ILP, and since each is 0-1 valued, we are dealing with an Integer LP. You task is to write the (utilization) constraints of the ILP as linear functions of the variables x<sub>i,j</sub>, i = 1, ..., n, j = 1, ..., m. There is one constraint per processor.
+
+
 
 ### [Subtask A.ii: Approximate Task Partitioning through FFD]
 
