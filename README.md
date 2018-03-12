@@ -93,7 +93,31 @@ How do we formulate this problem as an optimization program? What is an objectiv
 
 x and y are the _decision variables_, and we need assign them appropriate values to maximize the desired objective. Now let us write down the objective function as a function of our decision variables x and y. Going back to the objective, what is the number of units left in stock at the end of the week if we produce x units of product X and y units of product Y? For product x, there are 30 units in stock already, and the forecast demand of product X is 75 units, so if we produce x units of product X, then at the end of the week we will have (x+30-75) = (x-45) units of product X left in stock. Similarly, for product y, there are 90 units in stock already, and the forecast demand of product Y is 95 units, so if we produce y units of product Y, then at the end of the week we will have (y+90-95) = (y-5) units of product Y left in stock. Then the combined number of units of both products left in stock at the end of the week would be (x-45) + (y-5) = x+y-50 if we decide to produce x units of X and y units of Y. Thus the objective function (x+y-50), which is a linear function in the decision variables x and y.
 
-Now what is the range of values that each of variables x and y may assume? Can they be assigned any real values? The answer is NO. For instance, x and y cannot be negative (they represent number of units produced), so one constrained is that x ≥ 0 and y ≥ 0. Notice that we are writing the constraints on the choices for x and y in terms of the decision variables x and y. Are there other constraints in the problem description that further limit the ranges of x and y?  
+Now what is the range of values that each of variables x and y may assume? Can they be assigned any real values? The answer is NO. For instance, x and y cannot be negative (they represent number of units produced), so one constrained is that x ≥ 0 and y ≥ 0. Notice that we are writing the constraints on the choices for x and y in terms of the decision variables x and y. Are there other constraints in the problem description that further limit the ranges of x and y? Here are the other constraints from the problem description, which come from the available processing times on each of machines A and B:
+* _Available processing time on machine A is forecast to be 40 hours and on machine B is forecast to be 35 hours_
+
+* _Each unit of X that is produced requires 50 minutes processing time on machine A and 30 minutes processing time on machine B_ **and** _each unit of Y that is produced requires 24 minutes processing time on machine A and 33 minutes processing time on machine B_.
+  Looking at each machine separately, we find that producing x and y units of each product would demand 50x + 24y minutes on machine A, which should not exceed the 40 hour processing time available on machine A, and also we need 30x + 33y minutes on machine B, which should not exceed the 35 hour processing time available on machine B. Thus, we have the following two constraints
+		50x + 24y ≤ 40 × 60 (mins/h)
+		30x + 33y ≤ 35 × 60 (mins/h)
+  
+* Finally, the number of units produced of each of X and Y, in addition to the stock available already, should meet the forecast demand, thus we also have:
+		x ≥ 75 (demand) - 30 (initial stock)
+		y ≥ 95 (demand) - 90 (initial stock)
+  
+
+Thus the combined linear program may be written as follows:
+
+```
+	maximize x+y-50
+	subject to:
+		50x + 24y ≤ 40 × 60
+		30x + 33y ≤ 35 × 60
+		x ≥ 45
+		y ≥ 5
+```
+
+The constraints define the _feasibility region_ of the LP (which, here, is a subset of ℝ<sup>2</sup>). 
 
 ### [Subtask A.ii: Approximate Task Partitioning through FFD]
 
