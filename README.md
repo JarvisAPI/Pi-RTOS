@@ -64,11 +64,11 @@ on core 0 so that it is pinned to that core forever, even in global scheduling_.
 
 ## [Subtask A] Partitioned EDF
 The complexity in partitioned approaches to task scheduling comes from the 
-hardness of the task partitioning part (the "spatial" dimension), since this is essentially a bin-packing problem (([Wiki](https://en.wikipedia.org/wiki/Bin_packing_problem))) and bin-packing is NP-Complete in the strong sense. In the bin-packing problem, a list of real numbers in (0,1] is to be packed into a minimal number of bins, each of which holds a total of at most 1. The latter describes the _optimization_ version of bin-packing. That the task partitioning problem is actually equivalent to the _decision_ version of the bin-packing problem, which reads 
-> Given a list of real numbers in (0,1] and _m_ bins each having capacity 1, is there a packing of the list into the _m_ bins such that the capacity of each bin not exceeded?
+hardness of the task partitioning part (the "spatial" dimension), since this is essentially a bin-packing problem (([Wiki](https://en.wikipedia.org/wiki/Bin_packing_problem))) and bin-packing is NP-Complete in the strong sense. In the bin-packing problem, a list of real numbers in (0,1] is to be packed into a minimal number of bins, each of which holds a total of at most 1. The latter describes the _optimization_ version of bin-packing. The task partitioning problem is actually equivalent to the _decision_ version of the bin-packing problem, which reads 
+> Given a list of real numbers in (0,1] and _m_ bins each having capacity 1, is there a packing of the list into the _m_ bins such that the capacity of each bin is not exceeded?
 
 
-Since exact solutions to the partitioning problem are computationally intractable (unless P = NP), our best
+Since exact solutions to the task partitioning problem are computationally intractable (unless P = NP), our best
 next hope is an approximation scheme with provable bounds on the quality of the solutions returned. Luckily for us, such approximation schemes exist for the partitioning problem, and you will be implementing one such scheme (and one optional scheme if you opt to do it for extra credit; both described below). 
 
 Once an assignment of tasks to processor is determined, we can simply run all the tasks allocated to one 
