@@ -210,7 +210,7 @@ processors), as well as job-migration: An individual job that is preempted may r
 Thus, for global EDF scheduling, a single ready queue is maintained for all tasks and processors. Tasks are inserted into the global queue in EDF order, and 
 the job at the head of the ready queue is dispatched to any processor. 
 
-Implement global EDF and add all the required support in freeRTOS. Also add a simple control test of your choice. 
+Implement global EDF and add all the required support in freeRTOS. Also add a simple admission control test of your choice. 
 
 # [Task 4] Top-like Tool
 Here you will design an interactive console application that displays, for each of the four cores (a column for each core?), the tasks that are currently running on the core. This tool is particularly useful when the scheduling algorithm is global and tasks migrate across cores. The tool itself, when started, may be modeled as a periodic task that updates the display every _P_ seconds for some period _P_ of your choice. _The top task should not interfere with the hard-deadline tasks_. You may want to consider using a _server_ task to handle 
@@ -233,7 +233,7 @@ We will use the following _approximate_ rubric to grade your work:
 | 2 (CASH) | 10% |		
 | 3 A (Partitioned EDF in FreeRTOS)  | 15% |
 | 3 A.i (Partitioning exact) | 10% |
-| 3 A.ii (Partitioned FFD) | 10% |
+| 3 A.ii (Partitioning FFD) | 10% |
 | 3 A.iii (Partitioning quantitative comparison) | 10% |
 | 3 B (Global EDF in FreeTOS) | 15% |
 | 4 (Top tool) | 15% |
