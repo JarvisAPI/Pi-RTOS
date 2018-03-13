@@ -231,11 +231,11 @@ We will use the following _approximate_ rubric to grade your work:
 |:----:|:---:|
 | 1  (CBS) | 15% |
 | 2 (CASH) | 10% |		
-| 3 A (Partitioned EDF in FreeRTOS)  | 15 |
-| 3 A.i (Partitioning exact) | 10 |
-| 3 A.ii (Partitioned FFD) | 10 |
-| 3 A.iii (Partitioning quantitative comparison) | 10 |
-| 3 B (Global EDF in FreeTOS) | 15 |
+| 3 A (Partitioned EDF in FreeRTOS)  | 15% |
+| 3 A.i (Partitioning exact) | 10% |
+| 3 A.ii (Partitioned FFD) | 10% |
+| 3 A.iii (Partitioning quantitative comparison) | 10% |
+| 3 B (Global EDF in FreeTOS) | 15% |
 | 4 (Top tool) | 15% |
 
 Functionality apart, we will evaluate your submissions carefully along the following dimensions:
