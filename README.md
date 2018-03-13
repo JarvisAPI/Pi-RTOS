@@ -6,7 +6,7 @@ CPEN 432 / Project 4
 ## Introduction
 In this programming assignment you will be extending FreeRTOS in two key directions. First, you will add support for servicing aperiodic, soft real-time requests alongside hard real-time tasks, by implementing reservation-based, dynamic server schemes for handling aperiodic tasks, on top of EDF. You will be using your EDF implementation from the previous programming assignment.
 
-Second, you will be adding support for multiprocessor (multicore) real-time scheduling, making use of the four cores available in our RPi. You will implement both partitioned and global scheduling schemes. You will also develop a top-like tool that would allow the user to see the activity happening on each of the four cores, including the tasks already running on the processor and their states.
+Second, you will be adding support for multiprocessor (multi-core) real-time scheduling, making use of the four cores available in our RPi. You will implement both partitioned and global scheduling schemes. You will also develop a top-like tool that would allow the user to see the activity happening on each of the four cores, including the tasks already running on the processor and their states.
 
 
 **This programming assignment consists of 4 tasks**, and each section 
@@ -59,7 +59,7 @@ core runs the kernel task at any time should be considered in any
 multiprocessor scheduling scheme. _For simplicity, always execute the kernel 
 on core 0 so that it is pinned to that core forever, even in global scheduling_. For the purposes of this assignment there is no need to migrate the kernel.
 
-In FreeRTOS, expose configuration variables to allow the user to choose which multiprocessor scheduling strategy should be used. Your partitioned and global EDF should co-exist in the kernel's codebase (but not active simultaneously), and the user should merely activate any by defining the proper constant (`GLOBAL_EDF_ENABLE`, `PARTITIONED_EDF_ENABLE`). If no multicore scheduling algorithm is specified by the user, make global EDF the default scheduler. 
+In FreeRTOS, expose configuration variables to allow the user to choose which multiprocessor scheduling strategy should be used. Your partitioned and global EDF should co-exist in the kernel's code base (but not active simultaneously), and the user should merely activate any by defining the proper constant (`GLOBAL_EDF_ENABLE`, `PARTITIONED_EDF_ENABLE`). If no multi-core scheduling algorithm is specified by the user, make global EDF the default scheduler. 
 
 <!-- **Bonus:** If you are _really_ (like, _really_) up for a challenge, you may  -->
 <!-- want to consider implementing resource sharing. Two (or more) tasks running on different cores might share resources.   -->
@@ -136,7 +136,7 @@ fractional. To add integrality constraints, one has to further restrict the deci
 
 
 In this part, you will be considering exact solution methods for ILPs (as you will formulate the task partitioning problem as an ILP), _but you will not be concerned here about how the solution methods work_. Instead, you will be using ready-made LP solver that you can use to solve your ILP 
-_programatically_. That is, we will be using (I)LP solvers that expose an API through which you can specify your LP and invoke functions to return optimal solutions (if such solutions exist). There are many LP solver out there, but one of the best freely available API-based ILP solvers is `lp_solve` ([link to lp_solve](http://lpsolve.sourceforge.net/5.5/)). `lp_solve` is a free (see LGPL for the GNU lesser general public license) linear (integer) programming solver based on the revised simplex method and the Branch-and-bound method for the integers. It can also be called as a library from different languages like C, VB, .NET, Delphi, Excel, Java. It can also be called from AMPL, MATLAB, O-Matrix, Scilab, Octave, R via a driver program. `lp_solve` is written in ANSI C and can be compiled on many different platforms like linux and WINDOWS. Basically, lp_solve is a library, a set of routines, called the API that can be called from almost any programming language to solve ILP problems. There are several ways to pass the data to the library: Via the API, Via input files, and Via an IDE (all the details on how to use `lp_solve` are contained in the link above). 
+_programmatically_. That is, we will be using (I)LP solvers that expose an API through which you can specify your LP and invoke functions to return optimal solutions (if such solutions exist). There are many LP solver out there, but one of the best freely available API-based ILP solvers is `lp_solve` ([link to lp_solve](http://lpsolve.sourceforge.net/5.5/)). `lp_solve` is a free (see LGPL for the GNU lesser general public license) linear (integer) programming solver based on the revised simplex method and the Branch-and-bound method for the integers. It can also be called as a library from different languages like C, VB, .NET, Delphi, Excel, Java. It can also be called from AMPL, MATLAB, O-Matrix, Scilab, Octave, R via a driver program. `lp_solve` is written in ANSI C and can be compiled on many different platforms like linux and WINDOWS. Basically, lp_solve is a library, a set of routines, called the API that can be called from almost any programming language to solve ILP problems. There are several ways to pass the data to the library: Via the API, Via input files, and Via an IDE (all the details on how to use `lp_solve` are contained in the link above). 
 
 
 Another API-based ILP solver is the commercial [Gurobi](http://www.gurobi.com). This is regarded as the most reliable and extensive ILP solver available. The Gurobi API is available in many programming languages, including C, C++, Java, .NET, Python, MATLAB, and R. This is a _really_ expensive optimization API, but, luckily for us, they have an educational license that gives you access to the full fledged Gurobi for _free_. However, in order to authenticate that you are affiliated with an educational institute, the license should be activated from within the UBC network, so make you sure that you are on campus when activating your Gurobi license or just be connected to the UBC network through VPN. The documentation, including installation and license activation instructions, is comprehensive, and is made available for every supported programming language.
@@ -210,7 +210,7 @@ processors), as well as job-migration: An individual job that is preempted may r
 Thus, for global EDF scheduling, a single ready queue is maintained for all tasks and processors. Tasks are inserted into the global queue in EDF order, and 
 the job at the head of the ready queue is dispatched to any processor. 
 
-Implement global EDF and add all the required support in freeRTOS. Also add a simple admission control test of your choice. 
+Implement global EDF and add all the required support in FreeRTOS. Also add a simple admission control test of your choice. 
 
 # [Task 4] Top-like Tool
 Here you will design an interactive console application that displays, for each of the four cores (a column for each core?), the tasks that are currently running on the core. This tool is particularly useful when the scheduling algorithm is global and tasks migrate across cores. The tool itself, when started, may be modeled as a periodic task that updates the display every _P_ seconds for some period _P_ of your choice. _The top task should not interfere with the hard-deadline tasks_. You may want to consider using a _server_ task to handle 
@@ -235,7 +235,7 @@ We will use the following _approximate_ rubric to grade your work:
 | 3 A.i (Partitioning exact) | 10% |
 | 3 A.ii (Partitioning FFD) | 10% |
 | 3 A.iii (Partitioning quantitative comparison) | 10% |
-| 3 B (Global EDF in FreeTOS) | 15% |
+| 3 B (Global EDF in FreeRTOS) | 15% |
 | 4 (Top tool) | 15% |
 
 Functionality apart, we will evaluate your submissions carefully along the following dimensions:
