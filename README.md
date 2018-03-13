@@ -199,7 +199,7 @@ The approximation factor of the FFD heuristic described above considers the wors
 
 Upon implementing the exact and the approximate approaches above, devise a strategy to compare these methods in terms of (1) the running-time, and (2) the quality of the solutions returned. The comparison strategy is left for your creativity. Include graphs that illustrate the comparison results, and describe your findings. Typically, you would like to evaluate task sets on the order of ~256 tasks. How would you generate task set utilization vectors and the associated parameters (period, execution time) to make sure that you are covering a substantial region of the feasible utilization space? 
 
-You may want to consult the following paper on how to properly generate utilization vectors that are distributed _uniformly_ in the utilization space in order to properly compare scheduling algorithms (Techniques For The Synthesis Of Multiprocessor Tasksets)[https://pdfs.semanticscholar.org/24a9/c3297bf08caeceb15777e85f0c3da5c07e26.pdf].  
+You may want to consult the following paper on how to properly generate utilization vectors that are distributed _uniformly_ in the utilization space in order to properly compare scheduling algorithms [Techniques For The Synthesis Of Multiprocessor Tasksets](https://pdfs.semanticscholar.org/24a9/c3297bf08caeceb15777e85f0c3da5c07e26.pdf).  
 
 Report all your findings in a markdown file with the title `partitioning-heuristic-comparison.md`.
 
