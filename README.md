@@ -231,11 +231,11 @@ We will use the following _approximate_ rubric to grade your work:
 |:----:|:---:|
 | 1  (CBS) | 15% |
 | 2 (CASH) | 10% |		
-| 3 Partitioned in FreeRTOS  | 15 |
-| 3 A.i Partitioned exact | 15 |
-| 3 A.ii Partitioned FFD | 10 |
-| 3 A.iii Partitioned quantitative comparison | 10 |
-| 3 B Global EDF in FreeTOS | 15 |
+| 3 A (Partitioned EDF in FreeRTOS)  | 15 |
+| 3 A.i (Partitioning exact) | 10 |
+| 3 A.ii (Partitioned FFD) | 10 |
+| 3 A.iii (Partitioning quantitative comparison) | 10 |
+| 3 B (Global EDF in FreeTOS) | 15 |
 | 4 (Top tool) | 15% |
 
 Functionality apart, we will evaluate your submissions carefully along the following dimensions:
@@ -249,7 +249,9 @@ Remember that a substantial percentage of your grade will be assigned during
 the demos, so _prepare a nice demo!_ 
 
 # Submission instructions
-1. 
+1. For each of the partitioning implementations, include usage instructions and
+   a Makefile-like compilation script as mentioned above.
+2. Include the partitioning scheme comparisons in a file with title `partitioning-heuristic-comparison.md`. 
 1. In a markdown file with the name `changes.md`, record all of the changes 
    (and additions) that you  
    made to FreeRTOS in order to support the functionality in every task. 
