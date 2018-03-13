@@ -84,6 +84,11 @@ error tolerance parameter, and which trades accuracy for running-time_. Such sch
 
 **Note:** All the task partitioning scheme that you are asked to implement are executed _offline_ (i.e., prior to system operation), so a valid design choice is to write the partitioning functionality as a _tool_ that is entirely separate from FreeROTS, and just feed FreeRTOS, at system startup, the task set and the partitioning produced by running your tool on the input task set. You may use any programming language for your partitioning tool. Make sure to provide detailed usage and compilation instructions for your tool, preferably a script for the latter. If your tool does not compile or we cannot figure out how to use it then we will not grade it. Again, make sure to document and justify your design choices.
 
+**Quantitative study**  
+You will be comparing the exact and the approximate approach(es) to task 
+partitioning in terms of (1) the running-time, and (2) the quality of the solutions returned. The approximation factor for the FFD heuristic (below) considers worst-case and most difficult instances that push FFD to perform as poorly as possible relative to optimal. In practice, however, the instances of the task partitioning problem the are related to our domain may not realize the worst-case behavior, and the heuristics may perform much better than their worst-case. That's why it becomes important to know how far from optimal the heuristic we are considering is, using empirical analysis on real instances that are related to the application (here the application is scheduling). 
+
+
 ### [Subtask A.i] Exact Task Partitioning through ILP
 In general, Linear programming (LP) is a method to achieve the best outcome (such as maximum profit or lowest cost) in a mathematical model whose requirements are represented by linear relationships. A linear programming problem may be defined as the problem of 
 maximizing or minimizing a linear function subject to linear constraints. The constraints may be equalities or inequalities ([Wiki](https://en.wikipedia.org/wiki/Linear_programming)). 
