@@ -59,6 +59,8 @@ core runs the kernel task at any time should be considered in any
 multiprocessor scheduling scheme. _For simplicity, always execute the kernel 
 on core 0 so that it is pinned to that core forever, even in global scheduling_. For the purposes of this assignment there is no need to migrate the kernel.
 
+In FreeRTOS, expose configuration variables to allow the user to choose which multiprocessor scheduling strategy should be used. Your partitioned and global EDF should co-exist in the kernel's codebase (but not active simultaneously), and the user should merely activate any by defining the proper constant (`GLOBAL_EDF_ENABLE`, `PARTITIONED_EDF_ENABLE`). If no multicore scheduling algorithm is specified by the user, make global EDF the default scheduler. 
+
 <!-- **Bonus:** If you are _really_ (like, _really_) up for a challenge, you may  -->
 <!-- want to consider implementing resource sharing. Two (or more) tasks running on different cores might share resources.   -->
 
@@ -83,14 +85,6 @@ error tolerance parameter, and which trades accuracy for running-time_. Such sch
 (PTAS) because the running time is polynomial is the size of the instance (but generally not in the error parameter). See below for details.
 
 **Note:** All the task partitioning scheme that you are asked to implement are executed _offline_ (i.e., prior to system operation), so a valid design choice is to write the partitioning functionality as a _tool_ that is entirely separate from FreeROTS, and just feed FreeRTOS, at system startup, the task set and the partitioning produced by running your tool on the input task set. You may use any programming language for your partitioning tool. Make sure to provide detailed usage and compilation instructions for your tool, preferably a script for the latter. If your tool does not compile or we cannot figure out how to use it then we will not grade it. Again, make sure to document and justify your design choices.
-
-**Quantitative study**  
- The approximation factor of the FFD heuristic (below) considers the worst-case and most difficult instances that push FFD to perform as poorly as possible relative to optimal. In practice, however, the problem instances the are relevant to the domain in which we are applying the algorithms may not realize the worst-case behavior, and the heuristics may perform much better than their worst-case. That's why it becomes important to know how far from optimal the heuristic we are considering are, using empirical analysis on real instances that are related to the application (here the application is scheduling). Carrying out such quantitative analysis further supports our decision to use such heuristics, especially when the heuristic runs exponentially faster than the exact solution (which is the case for FFD vs. exact). 
-
-Upon implementing the exact and the approximate approaches below, devise a strategy to compare these methods in terms of (1) the running-time, and (2) the quality of the solutions returned. The comparison strategy is left for your creativity. Include graphs that illustrate the comparison results, and describe your findings. Typically, you would like to evaluate task sets on the order of ~256 tasks. How would you generate task set utilization vectors and the associated parameters (period, execution time) to make sure that you are covering a substantial region of the feasible utilization space? You may want to consult the following paper on how to properly generate utilization vectors that are distributed _uniformly_ in the utilization space in order to properly compare scheduling algorithms. 
-
-Report all your findings in a markdown file with the title `heuristic-comparison.md`. 
-
 
 ### [Subtask A.i] Exact Task Partitioning through ILP
 In general, Linear programming (LP) is a method to achieve the best outcome (such as maximum profit or lowest cost) in a mathematical model whose requirements are represented by linear relationships. A linear programming problem may be defined as the problem of 
@@ -199,6 +193,16 @@ The main idea of Chattopadhyay and Baruah's approach is to construct, for each i
 The LUT is constructed assuming that the utilizations of all the tasks have values from within a fixed set of distinct values V. When this LUT is later used to actually partition of a given task system τ, each task in τ may need to have its worst-case execution time (WCET) parameter inflated so that the resulting task utilization is indeed one of these distinct values in V. The challenge lies in choosing the values in V in such a manner that the amount of such inflation of WCET’s that is required is not too large. _You will have to read the paper carefully for the implementation details_.
 
 
+
+## [Subtask A.iii] Quantitative comparison of exact vs. approximate partitioning  
+The approximation factor of the FFD heuristic described above considers the worst-case and most difficult instances that push FFD to perform as poorly as possible relative to optimal. In practice, however, the problem instances the are relevant to the domain in which we are applying the algorithms may not realize the worst-case behavior, and the heuristics may perform much better than their worst-case. That's why it becomes important to know how far from optimal the heuristic we are considering are, using empirical analysis on real instances that are related to the application (here the application is scheduling). Carrying out such quantitative analysis further supports our decision to use such heuristics, especially when the heuristic runs exponentially faster than the exact solution (which is the case for FFD vs. exact). 
+
+Upon implementing the exact and the approximate approaches above, devise a strategy to compare these methods in terms of (1) the running-time, and (2) the quality of the solutions returned. The comparison strategy is left for your creativity. Include graphs that illustrate the comparison results, and describe your findings. Typically, you would like to evaluate task sets on the order of ~256 tasks. How would you generate task set utilization vectors and the associated parameters (period, execution time) to make sure that you are covering a substantial region of the feasible utilization space? 
+
+You may want to consult the following paper on how to properly generate utilization vectors that are distributed _uniformly_ in the utilization space in order to properly compare scheduling algorithms (Techniques For The Synthesis Of Multiprocessor Tasksets)[https://pdfs.semanticscholar.org/24a9/c3297bf08caeceb15777e85f0c3da5c07e26.pdf].  
+
+Report all your findings in a markdown file with the title `partitioning-heuristic-comparison.md`.
+
 ## [Subtask B] Global EDF
 In contrast to partitioned scheduling, global scheduling permits task migration (i.e., different jobs of an individual task may execute upon different 
 processors), as well as job-migration: An individual job that is preempted may resume execution upon a different processor from the one upon which it had been executing prior to preemption. 
@@ -225,10 +229,14 @@ We will use the following _approximate_ rubric to grade your work:
 
 | Task | Grade Contribution |		
 |:----:|:---:|
-| 1  (CBS) | 25% |
-| 2 (CASH) | 15% |		
-| 3 (Multiprocessor: Partitioned (exact + FFD) + Global) | 40%: (15% + 10%) + 15% |
-| 4 (Top tool) | 20% |
+| 1  (CBS) | 15% |
+| 2 (CASH) | 10% |		
+| 3 Partitioned in FreeRTOS  | 15 |
+| 3 A.i Partitioned exact | 15 |
+| 3 A.ii Partitioned FFD | 10 |
+| 3 A.iii Partitioned quantitative comparison | 10 |
+| 3 B Global EDF in FreeTOS | 15 |
+| 4 (Top tool) | 15% |
 
 Functionality apart, we will evaluate your submissions carefully along the following dimensions:
 + code style (i.e., readability and judicious choice of variable and function 
@@ -241,7 +249,7 @@ Remember that a substantial percentage of your grade will be assigned during
 the demos, so _prepare a nice demo!_ 
 
 # Submission instructions
-
+1. 
 1. In a markdown file with the name `changes.md`, record all of the changes 
    (and additions) that you  
    made to FreeRTOS in order to support the functionality in every task. 
