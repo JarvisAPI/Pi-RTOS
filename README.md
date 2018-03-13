@@ -64,7 +64,11 @@ on core 0 so that it is pinned to that core forever, even in global scheduling_.
 
 ## [Subtask A] Partitioned EDF
 The complexity in partitioned approaches to task scheduling comes from the 
-hardness of the task partitioning part (the "spatial" dimension), since this is essentially a bin-packing problem and bin-packing is NP-Complete in the strong sense. Since exact solutions to the partitioning problem are computationally intractable (unless P = NP), our best
+hardness of the task partitioning part (the "spatial" dimension), since this is essentially a bin-packing problem (([Wiki](https://en.wikipedia.org/wiki/Bin_packing_problem))) and bin-packing is NP-Complete in the strong sense. In the bin-packing problem, a list of real numbers in (0,1] is to be packed into a minimal number of bins, each of which holds a total of at most 1. The latter describes the _optimization_ version of bin-packing. That the task partitioning problem is actually equivalent to the _decision_ version of the bin-packing problem, which reads 
+> Given a list of real numbers in (0,1] and _m_ bins each having capacity 1, is there a packing of the list into the _m_ bins such that the capacity of each bin not exceeded?
+
+
+Since exact solutions to the partitioning problem are computationally intractable (unless P = NP), our best
 next hope is an approximation scheme with provable bounds on the quality of the solutions returned. Luckily for us, such approximation schemes exist for the partitioning problem, and you will be implementing one such scheme (and one optional scheme if you opt to do it for extra credit; both described below). 
 
 Once an assignment of tasks to processor is determined, we can simply run all the tasks allocated to one 
@@ -80,12 +84,12 @@ error tolerance parameter, and which trades accuracy for running-time_. Such sch
 
 **Note:** All the task partitioning scheme that you are asked to implement are executed _offline_ (i.e., prior to system operation), so a valid design choice is to write the partitioning functionality as a _tool_ that is entirely separate from FreeROTS, and just feed FreeRTOS, at system startup, the task set and the partitioning produced by running your tool on the input task set. You may use any programming language for your partitioning tool. Make sure to provide detailed usage and compilation instructions for your tool, preferably a script for the latter. If your tool does not compile or we cannot figure out how to use it then we will not grade it. Again, make sure to document and justify your design choices.
 
-### [Subtask A.i: Exact Task Partitioning through ILP]
+### [Subtask A.i] Exact Task Partitioning through ILP
 In general, Linear programming (LP) is a method to achieve the best outcome (such as maximum profit or lowest cost) in a mathematical model whose requirements are represented by linear relationships. A linear programming problem may be defined as the problem of 
 maximizing or minimizing a linear function subject to linear constraints. The constraints may be equalities or inequalities ([Wiki](https://en.wikipedia.org/wiki/Linear_programming)). 
 
 For instance, consider the following optimization problem.
->>  A company makes two products (X and Y) using two machines (A and B). Each unit of X that is produced requires 50 minutes processing time on machine A and 30 minutes processing time on machine B. Each unit of Y that is produced requires 24 minutes processing time on machine A and 33 minutes processing time on machine B. At the start of the current week there are 30 units of X and 90 units of Y in stock. Available processing time on machine A is forecast to be 40 hours and on machine B is forecast to be 35 hours. The demand for X in the current week is forecast to be 75 units and for Y is forecast to be 95 units. Company policy is to maximise the combined sum of the units of X and the units of Y in stock at the end of the week.
+>>  A company makes two products (X and Y) using two machines (A and B). Each unit of X that is produced requires 50 minutes processing time on machine A and 30 minutes processing time on machine B. Each unit of Y that is produced requires 24 minutes processing time on machine A and 33 minutes processing time on machine B. At the start of the current week there are 30 units of X and 90 units of Y in stock. Available processing time on machine A is forecast to be 40 hours and on machine B is forecast to be 35 hours. The demand for X in the current week is forecast to be 75 units and for Y is forecast to be 95 units. Company policy is to maximize the combined sum of the units of X and the units of Y in stock at the end of the week.
 
 How do we formulate this problem as an optimization program? What is an objective function that encodes the quantity to be maximized? Here, we need to decide how much of each product (X and Y) to make in the current week so as to maximize the combined sum of X and Y units that are left in stock at end of the week). To this end, let 
 * x be the number of units of X produced in the current week
@@ -144,14 +148,14 @@ We wish to find an assignment of tasks to cores so that no core overflows. If no
 
 
 
-### [Subtask A.ii: Approximate Task Partitioning through FFD]
+### [Subtask A.ii] Approximate Task Partitioning through FFD
 Since exact solution methods to the task partitioning are doomed to be exponential-time (unless P = NP), one is sometimes willing to trade exactness for computational efficiency. In the face of intractability, one's next best option is an approximation scheme that runs in time that is polynomial in the size of the input _with provable bounds on the quality of the solutions_. 
 
-For instance, consider the bin-packing problem ([Wiki](https://en.wikipedia.org/wiki/Bin_packing_problem)). In bin-packing, a list of real numbers in (0,1] is to be packed into a minimal number of bins, each of which holds a total of at most 1. The first-fit decreasing (FFD) algorithm packs each number in order of non-increasing size into the first bin in the list of open bins so far with sufficient remaining space. If none of the bins used so far have sufficient remaining capacity to hold the new item, and new bin is opened and the item is inserted into this new bin. The FFD heuristic produces, for every instance I of the bin-packing problem, a packing of items to bins that uses at most (11/9)OPT(I) + 6/9 bins, where OPT(I) is the number of bins in an optimal packing of instance I, and this bound is [tight](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.158.4834&rep=rep1&type=pdf).  
+For instance, The First-Fit Decreasing (FFD) algorithm for the bin-packing problem packs each number in order of non-increasing size into the first bin in the list of open bins so far with sufficient remaining space. If none of the bins used so far have sufficient remaining capacity to hold the new item, and new bin is opened and the item is inserted into this new bin. The FFD heuristic produces, for every instance I of the bin-packing problem, a packing of items to bins that uses at most (11/9)OPT(I) + 6/9 bins, where OPT(I) is the number of bins in an optimal packing of instance I, and this bound is [tight](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.158.4834&rep=rep1&type=pdf).  
 
 
 
-### [Optional: A PTAS for task partitioning] 
+### [Optional] A PTAS for task partitioning (Bonus 25 points) 
 In general, an algorithm A is a **PTAS** for a problem if for every instance I of the problem at hand and every given error-tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
 1. The value of the solution returned by the algorithm, which we denote as A(I), is at most (1+ɛ) away from the value of the optimal solution, and 
 2. It runs in time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). [If the running time is also polynomial in 1/ɛ, then the algorithm is said to be a _Fully_ Polynomial-Time Approximation Scheme FPTAS]. 
@@ -215,7 +219,7 @@ We will use the following _approximate_ rubric to grade your work:
 |:----:|:---:|
 | 1  (CBS) | 25% |
 | 2 (CASH) | 15% |		
-| 3 (Multiprocessor: Partitioned + Global) | 40%: 25% + 15% |
+| 3 (Multiprocessor: Partitioned (exact + FFD) + Global) | 40%: (15% + 10%) + 15% |
 | 4 (Top tool) | 20% |
 
 Functionality apart, we will evaluate your submissions carefully along the following dimensions:
