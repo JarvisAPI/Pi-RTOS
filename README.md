@@ -91,13 +91,13 @@ In general, Linear programming (LP) is a method to achieve the best outcome (suc
 maximizing or minimizing a linear function subject to linear constraints. The constraints may be equalities or inequalities ([Wiki](https://en.wikipedia.org/wiki/Linear_programming)). 
 
 For instance, consider the following optimization problem.
->>  A company makes two products ($`X`$ and $`Y`$) using two machines ($`A`$ and $`B`$). Each unit of $`X`$ that is produced requires 50 minutes processing time on machine A and 30 minutes processing time on machine B. Each unit of Y that is produced requires 24 minutes processing time on machine A and 33 minutes processing time on machine B. At the start of the current week there are 30 units of X and 90 units of Y in stock. Available processing time on machine A is forecast to be 40 hours and on machine B is forecast to be 35 hours. The demand for X in the current week is forecast to be 75 units and for Y is forecast to be 95 units. Company policy is to maximize the combined sum of the units of X and the units of Y in stock at the end of the week.
+>>  A company makes two products ($`X`$ and $`Y`$) using two machines ($`A`$ and $`B`$). Each unit of $`X`$ that is produced requires 50 minutes processing time on machine $`A`$ and 30 minutes processing time on machine $`B`$. Each unit of $`Y`$ that is produced requires $`24`$ minutes processing time on machine $`A`$ and 33 minutes processing time on machine $`B`$. At the start of the current week there are 30 units of $`X`$ and 90 units of $`Y`$ in stock. Available processing time on machine $`A`$ is forecast to be 40 hours and on machine $`B`$ is forecast to be 35 hours. The demand for $`X`$ in the current week is forecast to be 75 units and for $`Y`$ is forecast to be 95 units. Company policy is to maximize the combined sum of the units of $`X`$ and the units of $`Y`$ in stock at the end of the week.
 
-How do we formulate this problem as an optimization program? What is an objective function that encodes the quantity to be maximized? Here, we need to decide how much of each product (X and Y) to make in the current week so as to maximize the combined sum of X and Y units that are left in stock at end of the week). To this end, let 
-* x be the number of units of X produced in the current week
-* y be the number of units of Y produced in the current week.
+How do we formulate this problem as an optimization program? What is an objective function that encodes the quantity to be maximized? Here, we need to decide how much of each product ($`X`$ and $`Y`$) to make in the current week so as to maximize the combined sum of $`X`$ and $`Y`$ units that are left in stock at end of the week). To this end, let 
+* $`x`$ be the number of units of $`X`$ produced in the current week;
+* $`y`$ be the number of units of $`Y`$ produced in the current week.
 
-x and y are the _decision variables_, and we need assign them appropriate values to maximize the desired objective. Now let us write down the objective function as a function of our decision variables x and y. Going back to the objective, what is the number of units left in stock at the end of the week if we produce x units of product X and y units of product Y? For product x, there are 30 units in stock already, and the forecast demand of product X is 75 units, so if we produce x units of product X, then at the end of the week we will have (x+30-75) = (x-45) units of product X left in stock. Similarly, for product y, there are 90 units in stock already, and the forecast demand of product Y is 95 units, so if we produce y units of product Y, then at the end of the week we will have (y+90-95) = (y-5) units of product Y left in stock. Then the combined number of units of both products left in stock at the end of the week would be (x-45) + (y-5) = x+y-50 if we decide to produce x units of X and y units of Y. Thus the objective function is (x+y-50), which is a linear function in the decision variables x and y.
+$`x`$ and $`y`$ are the _decision variables_, and we need assign them appropriate values to maximize the desired objective. Now let us write down the objective function as a function of our decision variables $`x`$ and $`y`$. Going back to the objective, what is the number of units left in stock at the end of the week if we produce $`x`$ units of product $`X`$ and $`y`$ units of product $`Y`$? For product $`x`$, there are 30 units in stock already, and the forecast demand of product $`X`$ is 75 units, so if we produce $`x`$ units of product $`X`$, then at the end of the week we will have $`(x+30-75) = (x-45)`$ units of product $`X`$ left in stock. Similarly, for product $`y`$, there are 90 units in stock already, and the forecast demand of product $`Y`$ is 95 units, so if we produce $`y`$ units of product $`Y`$, then at the end of the week we will have $`(y+90-95) = (y-5)`$ units of product $`Y`$ left in stock. Then the combined number of units of both products left in stock at the end of the week would be $`(x-45) + (y-5) = x+y-50`$ if we decide to produce $`x`$ units of $`X`$ and $`y`$ units of $`Y`$. Thus the objective function is $`(x+y-50)`$, which is a linear function in the decision variables $`x`$ and $`y`$.
 
 Now what is the range of values that each of variables x and y may assume? Can they be assigned any real values? The answer is NO. For instance, x and y cannot be negative (they represent numbers of units produced), so one constraint is that x ≥ 0 and y ≥ 0. Notice that we are writing the constraints on the choices for x and y in terms of the decision variables x and y. Are there other constraints in the problem description that further limit the ranges of x and y? Here are the other constraints from the problem description, which come from the available processing times on each of machines A and B:
 * _Available processing time on machine A is forecast to be 40 hours and on machine B is forecast to be 35 hours_
@@ -105,16 +105,22 @@ Now what is the range of values that each of variables x and y may assume? Can t
 * _Each unit of X that is produced requires 50 minutes processing time on machine A and 30 minutes processing time on machine B_ **and** _each unit of Y that is produced requires 24 minutes processing time on machine A and 33 minutes processing time on machine B_.  
   Looking at each machine separately, we find that producing x and y units of each product would demand 50x + 24y minutes on machine A, which should not exceed the 40 hour processing time available on machine A. We also need 30x + 33y minutes on machine B, which should not exceed the 35 hour processing time available on machine B. Thus, we have the following two constraints
   
-```
-		50x + 24y ≤ 40 × 60 (mins/h)
-		30x + 33y ≤ 35 × 60 (mins/h)
+  
+```math
+\begin{aligned}
+		50x + 24y & \leq  40 \times 60 \text{ (mins/h)}\\
+		30x + 33y & \leq 35 \times 60 \text{ (mins/h)}
+\end{aligned}
 ```
 
 * Finally, the number of units produced of each of X and Y, in addition to the stock available already, should meet the forecast demand, thus we also have:
 
-```
-		x ≥ 75 (demand) - 30 (initial stock) 
-		y ≥ 95 (demand) - 90 (initial stock)
+
+```math
+\begin{aligned}
+		x & \geq 75 \text{ (demand)} - 30 \text{ (initial stock)} \\
+		y & \geq 95 \text{ (demand)} - 90 \text{ (initial stock)}
+\end{aligned}
 ```
 
 Thus the combined linear program may be written as follows:
@@ -131,7 +137,7 @@ Thus the combined linear program may be written as follows:
 \end{aligned}
 ```
 
-The constraints define the _feasibility region_ of the LP (which, here, is a subset of ℝ<sup>2</sup>), and is a convex polytope, which is the set defined as the intersection of the finitely many half spaces defined by the inequalities. If the LP is feasible, then an optimal solution would be a point lying on the boundary of constraint-defined convex polytope, and is really one of the vertices (i.e, one of the intersection points of the half spaces) of the polytope.
+The constraints define the _feasibility region_ of the LP (which, here, is a subset of $`\mathbb{R}^2`$), and is a convex polytope, which is the set defined as the intersection of the finitely many half spaces defined by the inequalities. If the LP is feasible, then an optimal solution would be a point lying at the boundary of constraint-defined convex polytope, and is really one of the vertices (i.e, one of the intersection points of the half spaces) of the polytope.
 
 
 There are many algorithms to solve LPs, the most famous of which is the [Simplex Algorithm](https://en.wikipedia.org/wiki/Simplex_algorithm) (and all its variants). Although the Simplex algorithm runs in exponential time in the worst-case, it shows excellent average case behavior, and is usually preferred to other polynomial-time methods, such as _interior point_ methods (the LP problem is poly-time solvable). Note, however, that in the example LP above, we did not insist on integer solutions, so an optimal solution to this LP could very well be 
