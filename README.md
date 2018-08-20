@@ -162,20 +162,22 @@ We wish to find an assignment of tasks to cores so that no core overflows. If no
 ### [Subtask A.ii] Approximate Task Partitioning through FFD
 Since exact solution methods to the task partitioning problem are doomed to be exponential-time (unless P = NP), one is sometimes willing to trade exactness for computational efficiency. In the face of intractability, one's next best option is an approximation scheme that runs in time that is polynomial in the size of the input _with provable bounds on the quality of the returned solution_. 
 
-For instance, The First-Fit Decreasing (FFD) algorithm for the bin-packing problem packs each number in order of non-increasing size into the first bin in the list of open bins so far with sufficient remaining space. If none of the bins used so far have sufficient remaining capacity to hold the new item, a new bin is opened and the item is inserted into this new bin. The FFD heuristic produces, for every instance I of the bin-packing problem, a packing of items to bins that uses at most (11/9)OPT(I) + 6/9 bins, where OPT(I) is the number of bins in an optimal packing of instance I, and this bound is [tight](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.158.4834&rep=rep1&type=pdf).  
+For instance, The First-Fit Decreasing (FFD) algorithm for the bin-packing problem packs each number in order of non-increasing size into the first bin with sufficient remaining space in the list of open bins so far. If none of the bins used so far have sufficient remaining capacity to hold the new item, a new bin is opened and the item is inserted into this new bin. The FFD heuristic produces, for every instance $`I`$ of the bin-packing problem, a packing of items to bins that uses at most $`(11/9)\text{OPT}(I) + 6/9`$ bins, where $`\text{OPT}(I)`$ is the number of bins in an optimal packing of instance $`I`$ (this bound is [tight](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.158.4834&rep=rep1&type=pdf)).  
 
 
-Implement the FFD heuristic and test your implementation. Again, develop this as a separate tool.
+**Implement the FFD heuristic and test your implementation**. Again, develop this as a separate tool.
 
 ### [Optional] A PTAS for task partitioning (Bonus 25 points) 
-In general, an algorithm A is a **PTAS** for a problem if for every instance I of the problem at hand and every given error-tolerance parameter ɛ>0 (this is the desired accuracy of the solution returned by A and is supplied by the user):
-1. The value of the solution returned by the algorithm, which we denote as A(I), is at most (1+ɛ) away from the value of the optimal solution, and 
-2. It runs in time that is polynomial in |I|, where |I| is the size of the instance in binary encoding (but not necessarily polynomial in 1/ɛ). [If the running time is also polynomial in 1/ɛ, then the algorithm is said to be a _Fully_ Polynomial-Time Approximation Scheme FPTAS]. 
+An algorithm $`A`$ is said to be a Polynomial-Time Approximation Scheme (**PTAS**) for a problem if for every instance $`I`$ of the problem and every given error-tolerance parameter $`\epsilon > 0`$ (this is the desired accuracy of the solution returned by $`A`$ and is supplied by the user):
+1. The value of the solution returned by the algorithm, which we denote as $`A(I)`$, is at most $`(1+\epsilon)`$ away from the value of the optimal solution, and 
+2. It runs in time that is polynomial in $`|I|`$, where $`|I|`$ is the size of the instance in binary encoding (but not necessarily polynomial in $`1/\epsilon`$). [If the running time is also polynomial in $`1/\epsilon`$, then the algorithm is said to be a _Fully_ Polynomial-Time Approximation Scheme FPTAS]. 
 
 For instance, if the problem at hand is a 
-minimization problem, and if we denote the value of the optimal (minimum-value) solution as OPT(I) for instance I, then a PTAS A := A(ɛ) (i.e, A is a function of ɛ) for the problem is such that A(I) ≤ (1+ɛ)OPT(I) for every instance I and ɛ. 
-The running time of algorithm A is a function T(|I|, 1/ɛ) that is polynomial in |I|. A valid running time for A would, for instance, be O((n/ɛ)<sup>1/ɛ<sup>2</sup></sup>), where n := |I|, or even O(n<sup>exp(1/ε)</sup>). Thus, as the 
-tolerable error ɛ approaches 0, the accuracy of the solution approaches optimal, but the running time approaches infinity. This gives a clear tradeoff between running time and the quality of approximation.
+minimization problem, and if we denote the value of the optimal (minimum-value) solution as $`\text{OPT}(I)`$ for instance $`I`$, then a PTAS $`A \equiv A(\epsilon)`$ (i.e, $`A`$ is a function of $`\epsilon`$) for the problem is such that $`A(I) \leq (1+\epsilon)\text{OPT}(I)`$ for every instance $`I`$ and $`\epsilon`$. 
+The running time of algorithm $`A`$ is a function $`T(|I|, 1/\epsilon)`$ that is polynomial in $`|I|`$. A valid running time for $`A`$ would, for instance, be 
+$`O\bigl((n/\epsilon)^{1/\epsilon^2})`$, where $`n := |I|`$, or even 
+$`O\bigl(n^{\exp(1/\epsilon)}\bigr)`$. Thus, as the 
+tolerable error $`\epsilon`$ approaches 0, the accuracy of the solution approaches optimal, but the running time approaches infinity. This gives precisely the tradeoff between running time and the quality of approximation.
 
 As an example of a PTAS, consider the _Euclidean_ Traveling Salesman Problem (TSP): Given _n_ points in ℝ<sup>2</sup> (the plane) with Euclidean distances, i.e., d(x, y) = ||x − y||<sub>2</sub> for points x, y ∈ ℝ<sup>2</sup>, what is a shortest tour that visits each of the _n_ points and returns to the original point? There is a well known PTAS for this problem by Sanjeev Arora [[link to paper](https://dl.acm.org/citation.cfm?doid=290179.290180)] that behaves as follows: For every fixed c > 1 and given any _n_ nodes in ℝ<sup>2</sup>, a randomized version of the scheme finds a (1 + 1/c)-approximation to the optimum traveling salesman tour in O(n (log n)<sup>O(c)</sup>) time. 
 
