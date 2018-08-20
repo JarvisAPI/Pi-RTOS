@@ -119,13 +119,16 @@ Now what is the range of values that each of variables x and y may assume? Can t
 
 Thus the combined linear program may be written as follows:
 
-```
-	maximize x+y-50
-	subject to:
-		50x + 24y ≤ 40 × 60
-		30x + 33y ≤ 35 × 60
-		x ≥ 45
-		y ≥ 5
+
+```math
+\begin{aligned}
+	& \text{maximize } x+y-50 \\
+	& \text{subject to:} \\
+	& \qquad	50x + 24y \leq 40 \times 60 \\
+	& \qquad	30x + 33y \leq 35 \times 60 \\
+	& \qquad	x \geq 45 \\
+	& \qquad	y \geq 5 \\
+\end{aligned}
 ```
 
 The constraints define the _feasibility region_ of the LP (which, here, is a subset of ℝ<sup>2</sup>), and is a convex polytope, which is the set defined as the intersection of the finitely many half spaces defined by the inequalities. If the LP is feasible, then an optimal solution would be a point lying on the boundary of constraint-defined convex polytope, and is really one of the vertices (i.e, one of the intersection points of the half spaces) of the polytope.
