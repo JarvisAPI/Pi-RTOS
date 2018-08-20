@@ -25,7 +25,7 @@ completing early. CASH is an approach that addresses this limitation. Read the a
 
 
 # [Task 3] Supporting Multiprocessor Real-time Scheduling in FreeRTOS
- In this part you will implement both partitioned and global EDF in FreeRTOS running on RPi. You will be considering only _implicit-deadline_ periodic tasks, where D<sub>i</sub> = P<sub>i</sub> for every task i. The different multiprocessor scheduling approaches (partitioned vs. global) pose different classes of challenges, both theoretically and implementation-wise, and the goal of this part is to learn the algorithmic complexities of multiprocessor scheduling, as well as gain an understanding and appreciation of the practical issues and 
+ In this part you will implement both partitioned and global EDF in FreeRTOS running on RPi. You will be considering only _implicit-deadline_ periodic tasks, where $`D_i`$ for every task $`i`$. The different multiprocessor scheduling approaches (partitioned vs. global) pose different classes of challenges, both theoretically and implementation-wise, and the goal of this part is to learn the algorithmic complexities of multiprocessor scheduling, as well as gain an understanding and appreciation of the practical issues and 
  challenges related to supporting multiprocessor execution and scheduling.
 
 
@@ -66,8 +66,8 @@ In FreeRTOS, expose configuration variables to allow the user to choose which mu
 
 ## [Subtask A] Partitioned EDF
 The complexity in partitioned approaches to task scheduling comes from the 
-hardness of the task partitioning part (the "spatial" dimension), since this is essentially a bin-packing problem (([Wiki](https://en.wikipedia.org/wiki/Bin_packing_problem))) and bin-packing is NP-Complete in the strong sense. In the bin-packing problem, a list of real numbers in (0,1] is to be packed into a minimal number of bins, each of which holds a total of at most 1. The latter describes the _optimization_ version of bin-packing. The task partitioning problem is actually equivalent to the _decision_ version of the bin-packing problem, which reads 
-> Given a list of real numbers in (0,1] and _m_ bins each having capacity 1, is there a packing of the list into the _m_ bins such that the capacity of each bin is not exceeded?
+hardness of the task partitioning part (the "spatial" dimension), since this is essentially a bin-packing problem ([Wiki](https://en.wikipedia.org/wiki/Bin_packing_problem)) and bin-packing is NP-Complete in the strong sense. In the bin-packing problem, a list of real numbers in $`(0,1]`$ is to be packed into the minimum number of bins, each of which holding a total of at most 1. The latter describes the _optimization_ version of bin-packing. The task partitioning problem is actually equivalent to the _decision_ version of the bin-packing problem, which reads 
+> Given a list of real numbers in $`(0,1]`$ and $`m`$ bins each having capacity 1, is there a packing of the list into the $`m`$ bins such that the capacity of each bin is not exceeded?
 
 
 Since exact solutions to the task partitioning problem are computationally intractable (unless P = NP), our best
@@ -91,7 +91,7 @@ In general, Linear programming (LP) is a method to achieve the best outcome (suc
 maximizing or minimizing a linear function subject to linear constraints. The constraints may be equalities or inequalities ([Wiki](https://en.wikipedia.org/wiki/Linear_programming)). 
 
 For instance, consider the following optimization problem.
->>  A company makes two products (X and Y) using two machines (A and B). Each unit of X that is produced requires 50 minutes processing time on machine A and 30 minutes processing time on machine B. Each unit of Y that is produced requires 24 minutes processing time on machine A and 33 minutes processing time on machine B. At the start of the current week there are 30 units of X and 90 units of Y in stock. Available processing time on machine A is forecast to be 40 hours and on machine B is forecast to be 35 hours. The demand for X in the current week is forecast to be 75 units and for Y is forecast to be 95 units. Company policy is to maximize the combined sum of the units of X and the units of Y in stock at the end of the week.
+>>  A company makes two products ($`X`$ and $`Y`$) using two machines ($`A`$ and $`B`$). Each unit of $`X`$ that is produced requires 50 minutes processing time on machine A and 30 minutes processing time on machine B. Each unit of Y that is produced requires 24 minutes processing time on machine A and 33 minutes processing time on machine B. At the start of the current week there are 30 units of X and 90 units of Y in stock. Available processing time on machine A is forecast to be 40 hours and on machine B is forecast to be 35 hours. The demand for X in the current week is forecast to be 75 units and for Y is forecast to be 95 units. Company policy is to maximize the combined sum of the units of X and the units of Y in stock at the end of the week.
 
 How do we formulate this problem as an optimization program? What is an objective function that encodes the quantity to be maximized? Here, we need to decide how much of each product (X and Y) to make in the current week so as to maximize the combined sum of X and Y units that are left in stock at end of the week). To this end, let 
 * x be the number of units of X produced in the current week
