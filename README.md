@@ -190,7 +190,8 @@ In other words, if the test returns "infeasible", then the test asserts with cer
 
 On any synchronous periodic or sporadic task system $`tau`$ with constrained deadlines:
 * If $`\tau`$ is deadline-monotonic (DM) infeasible on a unit-capacity processor then Algorithm $`A(\epsilon)`$ correctly identifies it as being DM-infeasible;
-* if $`\tau`$ is DM-feasible on a processor of computing capacity $`(1 − \epsilon)`$ then Algorithm $`A(\epsilon)`$ correctly identifies it as being DM-feasible;
+* if $`\tau`$ is DM-feasible on a processor of computing capacity 
+$`(1 - \epsilon)`$ then Algorithm $`A(\epsilon)`$ correctly identifies it as being DM-feasible;
 * else Algorithm $`A(\epsilon)`$ may identify $`τ`$ as being either feasible or infeasible.
 
 
