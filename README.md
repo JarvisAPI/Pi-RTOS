@@ -54,7 +54,7 @@ describe its implementation.
    to calling the scheduler, and describe briefly how the software interrupt 
    handler (service routine) in our port works and the basic operations it performs. 
 
-Create a Wiki page `Freertos Workings` and include in it your responses to the three foregoing subtasks. 
+Create a Wiki page `FreeRTOS Workings` and include in it your responses to the three foregoing subtasks. 
 
 FreeRTOS is very well-documented, and you will find plenty of resources on FreeRTOS's official website. In particular, you will find the books listed in https://www.freertos.org/Documentation/RTOS_book.html extremely useful. However, nothing is as useful and rewarding as _reading the kernel code_ to understand how 
 the components of interest work. 
