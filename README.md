@@ -131,7 +131,7 @@ the demos, so _prepare a nice demo!_
 3. Create a Wiki page named `Desgin`. In this document, 
    include the all your design choices, including the overrun management 
    mechanism, as well as your EDF and SRP implementation strategies.
-4. Create a Wiki page titled `Quantitative Analisys of SRP` and include in it the general strategy 
+4. Create a Wiki page titled `Quantitative Evaluation of SRP` and include in it the general strategy 
    you used to measure and evaluate the savings in the run-time stack space as
    a result of implementing stack sharing. Also record your findings, and 
    include graphs if necessary. 
