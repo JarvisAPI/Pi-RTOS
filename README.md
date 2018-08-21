@@ -188,7 +188,7 @@ Some approximation algorithms provide a solution for a _relaxed instance_ of the
 
 In other words, if the test returns "infeasible", then the test asserts with certainty that the _more difficult task set where the execution time of every task is inflated by $`(1 - \epsilon)`$ is not feasible on a unit speed processor, but it cannot tell whether the original (easier to schedule) instance is feasible. The main result is the following: For any $`\epsilon`$ in the range $`(0, 1)`$, there is an algorithm $`A(ε)`$ that has running time $`O(n^2/\epsilon)`$ (contrast this running time with that of the pseudopolynomial-time exact test) and exhibits the following behavior: 
 
-On any synchronous periodic or sporadic task system $`tau`$ with constrained deadlines:
+On any synchronous periodic or sporadic task system $`\tau`$ with constrained deadlines:
 * If $`\tau`$ is deadline-monotonic (DM) infeasible on a unit-capacity processor then Algorithm $`A(\epsilon)`$ correctly identifies it as being DM-infeasible;
 * if $`\tau`$ is DM-feasible on a processor of computing capacity 
 $`(1 - \epsilon)`$ then Algorithm $`A(\epsilon)`$ correctly identifies it as being DM-feasible;
