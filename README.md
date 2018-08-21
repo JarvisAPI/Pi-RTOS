@@ -167,7 +167,7 @@ For instance, The First-Fit Decreasing (FFD) algorithm for the bin-packing probl
 
 **Implement the FFD heuristic and test your implementation**. Again, develop this as a separate tool.
 
-### [Optional] A PTAS for task partitioning (Bonus 25 points) 
+### [Optional] A PTAS for task partitioning (Bonus 10 points) 
 An algorithm $`A`$ is said to be a Polynomial-Time Approximation Scheme (**PTAS**) for a problem if for every instance $`I`$ of the problem and every given error-tolerance parameter $`\epsilon > 0`$ (this is the desired accuracy of the solution returned by $`A`$ and is supplied by the user):
 1. The value of the solution returned by the algorithm, which we denote as $`A(I)`$, is at most $`(1+\epsilon)`$ away from the value of the optimal solution, and 
 2. It runs in time that is polynomial in $`|I|`$, where $`|I|`$ is the size of the instance in binary encoding (but not necessarily polynomial in $`1/\epsilon`$). [If the running time is also polynomial in $`1/\epsilon`$, then the algorithm is said to be a _Fully_ Polynomial-Time Approximation Scheme FPTAS]. 
