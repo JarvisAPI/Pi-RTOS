@@ -128,7 +128,7 @@ the demos, so _prepare a nice demo!_
    FreeRTOS in order to support EDF and SRP. Make sure to include all the 
    files that you altered as well as the functions you changed, and also
    list the new functions that you added. 
-3. Create a Wiki page named `Desgin`. In this document, 
+3. Create a Wiki page named `Design`. In it, 
    include the all your design choices, including the overrun management 
    mechanism, as well as your EDF and SRP implementation strategies.
 4. Create a Wiki page titled `Quantitative Evaluation of SRP` and include in it the general strategy 
