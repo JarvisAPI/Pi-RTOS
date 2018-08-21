@@ -54,7 +54,7 @@ describe its implementation.
    to calling the scheduler, and describe briefly how the software interrupt 
    handler (service routine) in our port works and the basic operations it performs. 
 
-Create a file `freertos-workings.md` and include in it your responses to the three foregoing subtasks. 
+Create a Wiki page `Freertos Workings` and include in it your responses to the three foregoing subtasks. 
 
 FreeRTOS is very well-documented, and you will find plenty of resources on FreeRTOS's official website. In particular, you will find the books listed in https://www.freertos.org/Documentation/RTOS_book.html extremely useful. However, nothing is as useful and rewarding as _reading the kernel code_ to understand how 
 the components of interest work. 
@@ -71,7 +71,7 @@ overrun management mechanism is left to you as design choice. Would you drop the
 Document your design choices clearly. 
 
 Indicate all the changes that you made to FreeRTOS in order to support EDF. 
-Document all the changes in a file called `changes.md`.
+Document all the changes in a Wiki page titled `Changes to FreeRTOS`.
 
 In a configuration file, expose some configurable constants that can be used by the user to enable/disable EDF and/or SRP. If the user chooses not to use your extensions to FreeRTOS, you should instead run the default mechanisms provided by FreeRTOS.
 
@@ -123,26 +123,25 @@ the demos, so _prepare a nice demo!_
 
 
 # Submission instructions
-1. For Task 1 questions, submit your answers in a markdown file named `freertos-workings.md`
-2. In `changes.md`, record all of the changes that you needed to make to 
+1. For Task 1 questions, submit your answers in a markdown file named `FreeRTOS Workings`
+2. In `Changes to FreeRTOS`, record all of the changes that you needed to make to 
    FreeRTOS in order to support EDF and SRP. Make sure to include all the 
    files that you altered as well as the functions you changed, and also
    list the new functions that you added. 
-3. Create a markdown document named `design.md`. In this document, 
+3. Create a Wiki page named `Desgin`. In this document, 
    include the all your design choices, including the overrun management 
    mechanism, as well as your EDF and SRP implementation strategies.
-4. Create a document named `quant.md` and include in it the general strategy 
+4. Create a Wiki page titled `Quantitative Analisys of SRP` and include in it the general strategy 
    you used to measure and evaluate the savings in the run-time stack space as
    a result of implementing stack sharing. Also record your findings, and 
    include graphs if necessary. 
-5. **Testing**. Create a markdown document named `testing.md`. For every task,
+5. **Testing**. Create a Wiki page named `Testing`. For every task,
    include the general testing methodology you used, in addition 
    to all the test cases. For each test case, provide an explanation
    as to the specific functionality/scenario that it tests. Also indicate the 
    result of each test case. 
-6. **Bugs**. Create a file named `bugs.md` and include a list of the current bugs
-   in your implementations.
-7. **Future improvements**. Create a file named `future.md` and include a list 
+6. **Bugs**. Create a Wiki page titled `Bugs` and include a list of the current bugs in your implementations.
+7. **Future improvements**. Create a Wiki page titled `Future Work` and include a list 
    of the things you could do to improve your implementations, 
    have you had the time to do them. This includes optimizations, 
    decision choices, and basically anything you deemed lower priority `TODO`.
