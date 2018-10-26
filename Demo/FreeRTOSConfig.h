@@ -131,5 +131,8 @@ configKERNEL_INTERRUPT_PRIORITY setting.  Here 15 corresponds to the lowest
 NVIC value of 255. */
 #define configLIBRARY_KERNEL_INTERRUPT_PRIORITY	15
 
+/* Chooses the scheduling algorithm */
+#define configUSE_SCHEDULER_EDF 1
+
 #endif /* FREERTOS_CONFIG_H */
 

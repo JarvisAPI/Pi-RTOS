@@ -170,7 +170,23 @@ a statically allocated stack and a dynamically allocated TCB. */
 	} /* taskRECORD_READY_PRIORITY */
 
 	/*-----------------------------------------------------------*/
-
+#if( configUSE_SCHEDULER_EDF == 1 )
+    #define taskSELECT_HIGHEST_PRIORITY_TASK()
+		 \
+	{																									\
+	UBaseType_t uxTopPriority = uxTopReadyPriority;														\
+																										\
+		/* Find the highest priority queue that contains ready tasks. */								\
+		while( listLIST_IS_EMPTY( &( pxReadyTasksLists[ uxTopPriority ] ) ) )							\
+		{																								\
+			configASSERT( uxTopPriority );																\
+			--uxTopPriority;																			\
+		}																								\
+        ListItem_t const *endMarker = listGET_END_MARKER( &( pxReadyTasksLists[ uxTopPriority ] ) );    \
+        pxCurrentTCB = listGET_LIST_ITEM_OWNER( endMarker );                                            \
+		uxTopReadyPriority = uxTopPriority;																\
+    } /* taskSELECT_HIGHEST_PRIORITY_TASK */
+#else
 	#define taskSELECT_HIGHEST_PRIORITY_TASK()															\
 	{																									\
 	UBaseType_t uxTopPriority = uxTopReadyPriority;														\
@@ -187,6 +203,7 @@ a statically allocated stack and a dynamically allocated TCB. */
 		listGET_OWNER_OF_NEXT_ENTRY( pxCurrentTCB, &( pxReadyTasksLists[ uxTopPriority ] ) );			\
 		uxTopReadyPriority = uxTopPriority;																\
 	} /* taskSELECT_HIGHEST_PRIORITY_TASK */
+#endif /* configSET_SCHEDULER_EDF */
 
 	/*-----------------------------------------------------------*/
 
@@ -776,6 +793,7 @@ static void prvInitialiseNewTask( 	TaskFunction_t pxTaskCode,
 StackType_t *pxTopOfStack;
 UBaseType_t x;
 
+ 
 	#if( portUSING_MPU_WRAPPERS == 1 )
 		/* Should the task be created in privileged mode? */
 		BaseType_t xRunPrivileged;
@@ -947,6 +965,11 @@ UBaseType_t x;
 	}
 	#endif /* portUSING_MPU_WRAPPERS */
 
+    #if( configUSE_SCHEDULER_EDF == 1 )
+    {
+        pxNewTCB->xEventListItem.xItemValue = (TickType_t) pvParameters;
+    }
+    #endif /* configUSE_SCHEDULER_EDF */
 	if( ( void * ) pxCreatedTask != NULL )
 	{
 		/* Pass the handle out in an anonymous way.  The handle can be used to
@@ -2502,6 +2525,27 @@ TCB_t * pxTCB;
 TickType_t xItemValue;
 BaseType_t xSwitchRequired = pdFALSE;
 
+#if( configUSE_SCHEDULER_EDF == 1 )
+{
+    List_t *readyList;
+    ListItem_t *currentItem;
+    ListItem_t const *endMarker;
+    TCB_t * currentTCB;
+    if (pxCurrentTCB->uxPriority != 0) {
+        readyList = &pxReadyTasksLists[ pxCurrentTCB->uxPriority ];
+        endMarker = listGET_END_MARKER( readyList );
+        currentItem = listGET_HEAD_ENTRY( readyList );
+        while( currentItem != endMarker ) {
+            currentTCB = listGET_LIST_ITEM_OWNER( currentItem );
+            // TODO: Remove task if xItemValue is 0, since task missed its deadline
+            if (currentTCB->xEventListItem.xItemValue != 0) {
+                currentTCB->xEventListItem.xItemValue--;
+            }
+            currentItem = listGET_NEXT( currentItem );
+        }
+    }
+}
+#endif
 	/* Called by the portable layer each time a tick interrupt occurs.
 	Increments the tick then checks to see if the new tick value will cause any
 	tasks to be unblocked. */

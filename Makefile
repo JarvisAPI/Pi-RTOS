@@ -4,6 +4,7 @@ SOURCES = Demo/main.c \
           Demo/startup.c \
           Demo/Drivers/rpi_gpio.c \
           Demo/Drivers/rpi_irq.c \
+          Demo/Drivers/rpi_aux.c \
           Source/tasks.c \
           Source/list.c \
           Source/portable/GCC/RaspberryPi/port.c \
