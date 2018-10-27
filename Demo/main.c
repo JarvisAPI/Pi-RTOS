@@ -12,7 +12,7 @@ const char *str0 = "Ok I am Task1";
 const char *str1 = "Hey Task2 here";
 
 const TickType_t xTimingDelay1 = 1000 / portTICK_PERIOD_MS;
-const TickType_t xTimingDelay2 = 3000 / portTICK_PERIOD_MS;
+const TickType_t xTimingDelay2 = 2900 / portTICK_PERIOD_MS;
 
 void task1(void *pParam) {
 	int i = 0;

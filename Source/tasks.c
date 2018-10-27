@@ -2551,11 +2551,14 @@ implementations require configUSE_TICKLESS_IDLE to be set to a value other than
 #endif /* INCLUDE_xTaskAbortDelay */
 /*----------------------------------------------------------*/
 
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+
 BaseType_t xTaskIncrementTick( void )
 {
 TCB_t * pxTCB;
 TickType_t xItemValue;
 BaseType_t xSwitchRequired = pdFALSE;
+TickType_t xSmallestTick = 0xFFFFFFFF;
 
 #if( configUSE_SCHEDULER_EDF == 1 )
 {
@@ -2563,6 +2566,7 @@ BaseType_t xSwitchRequired = pdFALSE;
     ListItem_t *currentItem;
     ListItem_t const *endMarker;
     TCB_t * currentTCB;
+
     if (pxCurrentTCB->uxPriority != 0) {
         readyList = &pxReadyTasksLists[ pxCurrentTCB->uxPriority ];
         endMarker = listGET_END_MARKER( readyList );
@@ -2572,6 +2576,7 @@ BaseType_t xSwitchRequired = pdFALSE;
             // TODO: Remove task if xItemValue is 0, since task missed its deadline
             if (currentTCB->xStateListItem.xItemValue > 0) {
                 currentTCB->xStateListItem.xItemValue--;
+                xSmallestTick = MIN( xSmallestTick, currentTCB->xStateListItem.xItemValue );
             }
             else
             {
@@ -2677,7 +2682,11 @@ BaseType_t xSwitchRequired = pdFALSE;
 						only be performed if the unblocked task has a
 						priority that is equal to or higher than the
 						currently executing task. */
+                                                #if( configUSE_SCHEDULER_EDF == 1 )
+						if(pxTCB->xRelativeDeadline < xSmallestTick)
+                                                #else
 						if( pxTCB->uxPriority >= pxCurrentTCB->uxPriority )
+                                                #endif
 						{
 							xSwitchRequired = pdTRUE;
 						}
