@@ -3,15 +3,20 @@
 
 #include "Drivers/rpi_gpio.h"
 #include "Drivers/rpi_irq.h"
+#include "Drivers/util.h"
 
-const TickType_t xDelay = 500 * portTICK_PERIOD_MS;
+const TickType_t xDelay = 500 / portTICK_PERIOD_MS;
 
 void task1(void *pParam) {
 	int i = 0;
+    TickType_t start_tick, end_tick;
 	while(1) {
+        start_tick = xTaskGetTickCount();
 		i++;
-		rpi_gpio_set_val(47, 1);
-		rpi_gpio_set_val(35, 0);
+        rpi_gpio_set_val(47, 1);
+        rpi_gpio_set_val(35, 0);
+        end_tick = xTaskGetTickCount();
+        printk("Tick count: %u\n\r", end_tick - start_tick);
 		vTaskDelay(xDelay);
 	}
 }
@@ -26,7 +31,6 @@ void task2(void *pParam) {
 		vTaskDelay(xDelay/2);
 	}
 }
-
 
 /**
  *	This is the systems main entry, some call it a boot thread.
