@@ -5,18 +5,23 @@
 #include "Drivers/rpi_irq.h"
 #include "Drivers/rpi_aux.h"
 
-const TickType_t xDelay = 500 / portTICK_PERIOD_MS;
+const TickType_t xDelay = 10 / portTICK_PERIOD_MS;
 
 const char *str0 = "Ok I am Task1";
 const char *str1 = "Hey Task2 here";
 
 void task1(void *pParam) {
-	int i = 0;
+	int i;
+    TickType_t start_tick, end_tick;
+    
+    i = 0;
 	while(1) {
+        start_tick = xTaskGetTickCount();
 		i++;
         rpi_aux_mu_string((char *)str0);
 		rpi_gpio_set_val(47, 1);
 		rpi_gpio_set_val(35, 0);
+        end_tick = xTaskGetTickCount();
 		vTaskDelay(xDelay);
 	}
 }
