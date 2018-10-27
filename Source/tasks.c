@@ -81,6 +81,7 @@ task.h is included from an application file. */
 #include "task.h"
 #include "timers.h"
 #include "StackMacros.h"
+#include "printk.h"
 
 /* Lint e961 and e750 are suppressed as a MISRA exception justified because the
 MPU ports require MPU_WRAPPERS_INCLUDED_FROM_API_FILE to be defined for the
@@ -276,7 +277,7 @@ count overflows. */
 #define prvAddTaskToReadyList( pxTCB )																\
 	traceMOVED_TASK_TO_READY_STATE( pxTCB );														\
 	taskRECORD_READY_PRIORITY( ( pxTCB )->uxPriority );												\
-	vListInsertEnd( &( pxReadyTasksLists[ ( pxTCB )->uxPriority ] ), &( ( pxTCB )->xStateListItem ) ); \
+	vListInsert( &( pxReadyTasksLists[ ( pxTCB )->uxPriority ] ), &( ( pxTCB )->xStateListItem ) ); \
 	tracePOST_MOVED_TASK_TO_READY_STATE( pxTCB )
 /*-----------------------------------------------------------*/
 
@@ -377,6 +378,10 @@ typedef struct tskTaskControlBlock
 		uint8_t ucDelayAborted;
 	#endif
 
+        #if( configUSE_SCHEDULER_EDF == 1 )
+                TickType_t xRelativeDeadline;
+        #endif
+
 } tskTCB;
 
 /* The old tskTCB name is maintained above then typedefed to the new TCB_t name
@@ -439,6 +444,23 @@ PRIVILEGED_DATA static volatile UBaseType_t uxSchedulerSuspended	= ( UBaseType_t
 #endif
 
 /*lint +e956 */
+
+void printSchedule( void )
+{
+    if ( pxCurrentTCB )
+        printk("Current Task %s, deadline %d\r\n", pxCurrentTCB->pcTaskName, (uint64_t ) pxCurrentTCB->xRelativeDeadline);
+
+    List_t* readyList = &pxReadyTasksLists[1];
+    ListItem_t const* endMarker = listGET_END_MARKER( readyList );
+    ListItem_t* currentItem = listGET_HEAD_ENTRY( readyList );
+    while( currentItem != endMarker ) {
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        printk("Task %s, deadline %d, remaining %d\r\n", tcb->pcTaskName,
+                                                         (uint64_t ) tcb->xRelativeDeadline,
+                                                         (uint64_t) currentItem->xItemValue);
+        currentItem = listGET_NEXT( currentItem );
+    }
+}
 
 /*-----------------------------------------------------------*/
 
@@ -689,13 +711,22 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 /*-----------------------------------------------------------*/
 
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
-
+    #if( configUSE_SCHEDULER_EDF == 1 )
+	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
+							const char * const pcName,
+							const uint16_t usStackDepth,
+							void * const pvParameters,
+							UBaseType_t uxPriority,
+                                                        TickType_t xRelativeDeadline,
+							TaskHandle_t * const pxCreatedTask ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
+    #else
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
 							const char * const pcName,
 							const uint16_t usStackDepth,
 							void * const pvParameters,
 							UBaseType_t uxPriority,
 							TaskHandle_t * const pxCreatedTask ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
+    #endif
 	{
 	TCB_t *pxNewTCB;
 	BaseType_t xReturn;
@@ -767,6 +798,12 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 			#endif /* configSUPPORT_STATIC_ALLOCATION */
 
 			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
+                        #if( configUSE_SCHEDULER_EDF == 1 )
+                        {
+                            pxNewTCB->xStateListItem.xItemValue = xRelativeDeadline;
+                            pxNewTCB->xRelativeDeadline = xRelativeDeadline;
+                        }
+                        #endif /* configUSE_SCHEDULER_EDF */
 			prvAddNewTaskToReadyList( pxNewTCB );
 			xReturn = pdPASS;
 		}
@@ -964,12 +1001,6 @@ UBaseType_t x;
 		pxNewTCB->pxTopOfStack = pxPortInitialiseStack( pxTopOfStack, pxTaskCode, pvParameters );
 	}
 	#endif /* portUSING_MPU_WRAPPERS */
-
-    #if( configUSE_SCHEDULER_EDF == 1 )
-    {
-        pxNewTCB->xEventListItem.xItemValue = (TickType_t) pvParameters;
-    }
-    #endif /* configUSE_SCHEDULER_EDF */
 	if( ( void * ) pxCreatedTask != NULL )
 	{
 		/* Pass the handle out in an anonymous way.  The handle can be used to
@@ -1884,6 +1915,7 @@ BaseType_t xReturn;
 								"IDLE", configMINIMAL_STACK_SIZE,
 								( void * ) NULL,
 								( tskIDLE_PRIORITY | portPRIVILEGE_BIT ),
+                                                                0xFFFFFFFF,
 								&xIdleTaskHandle ); /*lint !e961 MISRA exception, justified as it is not a redundant explicit cast to all supported compilers. */
 	}
 	#endif /* configSUPPORT_STATIC_ALLOCATION */
@@ -2538,8 +2570,13 @@ BaseType_t xSwitchRequired = pdFALSE;
         while( currentItem != endMarker ) {
             currentTCB = listGET_LIST_ITEM_OWNER( currentItem );
             // TODO: Remove task if xItemValue is 0, since task missed its deadline
-            if (currentTCB->xEventListItem.xItemValue != 0) {
-                currentTCB->xEventListItem.xItemValue--;
+            if (currentTCB->xStateListItem.xItemValue > 0) {
+                currentTCB->xStateListItem.xItemValue--;
+            }
+            else
+            {
+                printk("MISSED DEADLINE!\r\n");
+                while(1);
             }
             currentItem = listGET_NEXT( currentItem );
         }
@@ -2627,6 +2664,9 @@ BaseType_t xSwitchRequired = pdFALSE;
 
 					/* Place the unblocked task into the appropriate ready
 					list. */
+                                        #if( configUSE_SCHEDULER_EDF == 1 )
+                                            pxTCB->xStateListItem.xItemValue = pxTCB->xRelativeDeadline;
+                                         #endif
 					prvAddTaskToReadyList( pxTCB );
 
 					/* A task being unblocked cannot cause an immediate
