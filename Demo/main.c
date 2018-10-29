@@ -6,6 +6,10 @@
 #include "Drivers/rpi_irq.h"
 #include "Drivers/rpi_aux.h"
 
+// Number of increments it takes to wait for 1ms, with tick interrupts happening in between
+// This value was obtained by using binary search on a single task with 10ms deadline
+#define MAGIC_COUNT 745
+
 const TickType_t xDelay = 10 / portTICK_PERIOD_MS;
 
 const char *str0 = "Ok I am Task1";
@@ -13,6 +17,12 @@ const char *str1 = "Hey Task2 here";
 
 const TickType_t xTimingDelay1 = 1000 / portTICK_PERIOD_MS;
 const TickType_t xTimingDelay2 = 2900 / portTICK_PERIOD_MS;
+
+void delay(uint32_t ms) {
+    uint32_t i;
+    uint32_t max_counter = MAGIC_COUNT * ms;
+    for (i=0; i<max_counter; i++);
+}
 
 void task1(void *pParam) {
 	int i;
