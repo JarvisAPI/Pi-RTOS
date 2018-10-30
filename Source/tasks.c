@@ -378,10 +378,13 @@ typedef struct tskTaskControlBlock
 		uint8_t ucDelayAborted;
 	#endif
 
-        #if( configUSE_SCHEDULER_EDF == 1 )
-                TickType_t xRelativeDeadline;
-        #endif
+    #if( configUSE_SCHEDULER_EDF == 1 )
+        TickType_t xRelativeDeadline;
+    #endif
 
+    #if( configUSE_SRP == 1 )
+        StackType_t xPreemptionLevel;
+    #endif
 } tskTCB;
 
 /* The old tskTCB name is maintained above then typedefed to the new TCB_t name
@@ -717,7 +720,7 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 							const uint16_t usStackDepth,
 							void * const pvParameters,
 							UBaseType_t uxPriority,
-                                                        TickType_t xRelativeDeadline,
+                            TickType_t xRelativeDeadline,
 							TaskHandle_t * const pxCreatedTask ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
     #else
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -2559,6 +2562,9 @@ TCB_t * pxTCB;
 TickType_t xItemValue;
 BaseType_t xSwitchRequired = pdFALSE;
 TickType_t xSmallestTick = 0xFFFFFFFF;
+#if( configUSE_SRP == 1 )
+uint32_t *vSysCeilPtr;
+#endif /* configUSE_SRP */
 
 #if( configUSE_SCHEDULER_EDF == 1 )
 {
@@ -2688,7 +2694,17 @@ TickType_t xSmallestTick = 0xFFFFFFFF;
 						if( pxTCB->uxPriority >= pxCurrentTCB->uxPriority )
                                                 #endif
 						{
-							xSwitchRequired = pdTRUE;
+                            #if( configUSE_SRP == 1 )
+                            {
+                                vSysCeilPtr = (uint32_t *) srpSysCeilStackPeak();
+                                
+                                if ( pxTCB->xPreemptionLevel > *vSysCeilPtr ) {
+                                    xSwichRequired = pdTRUE;
+                                }
+                            }    
+                            #else
+                                xSwitchRequired = pdTRUE;
+                            #endif /* configUSE_SRP */
 						}
 						else
 						{
@@ -2707,7 +2723,17 @@ TickType_t xSmallestTick = 0xFFFFFFFF;
 		{
 			if( listCURRENT_LIST_LENGTH( &( pxReadyTasksLists[ pxCurrentTCB->uxPriority ] ) ) > ( UBaseType_t ) 1 )
 			{
-				xSwitchRequired = pdTRUE;
+                #if( configUSE_SRP == 1 )
+                {
+                    vSysCeilPtr = (uint32_t *) srpSysCeilStackPeak();
+                                
+                    if ( pxTCB->xPreemptionLevel > *vSysCeilPtr ) {
+                        xSwichRequired = pdTRUE;
+                    }
+                }    
+                #else
+                    xSwitchRequired = pdTRUE;
+                #endif /* configUSE_SRP */
 			}
 			else
 			{
@@ -4893,8 +4919,159 @@ const TickType_t xConstTickCount = xTickCount;
 	#endif /* INCLUDE_vTaskSuspend */
 }
 
+/*-------------------------------------------------------------------------------------*/
+
+#if ( configUSE_SCHEDULER_EDF == 1 && configUSE_SRP == 1 )
+
+#ifndef MAX_SYS_CEIL_LEVELS
+    #define MAX_SYS_CEIL_LEVELS 16
+#endif
+
+#ifndef MAX_RUNTIME_STACK_DEPTH
+    #define MAX_RUNTIME_STACK_DEPTH 500 // Number of stack variables that stack can hold
+#endif
+
+typedef Resource_s {
+    uint32_t *xCeilPtr; // Pointer to the resource ceiling value of a task
+    QueueHandle_t xSemaphore;
+} Resource_t;
+
+typedef Stack_s {
+    StackType_t *xStack;
+    size_t xSize;
+    size_t xMaxSize;
+} Stack_t;
+
+/* Invariant: The size of (number of values in) mSysCeilStack should always be at least 1. */
+static Stack_t mSysCeilStack;
+static Stack_t mRuntimeStack;
+
+void srpInitSRPStacks(void) {
+    mSysCeilStack.xMaxSize = MAX_SYS_CEIL_LEVELS * sizeof( StackType_t );
+    
+    mSysCeilStack.xStack = pvPortMalloc( mSysCeilStack.xMaxSize );
+
+    if ( mSysCeilStack.xStack != NULL ) {
+        mRuntimeStack.xMaxSize = MAX_RUNTIME_STACK_DEPTH * sizeof( StackType_t );
+        
+        mRuntimeStack.xStack = pvPortMalloc( mRuntimeStack.xMaxSize );
+
+        if ( mRuntimeStack.xStack == NULL ) {
+            vPortFree( mSysCeilStack.xStack );
+            mSysCeilStack.xStack = NULL;
+            return;
+        }
+    }
+    mSysCeilStack.xSize = 0;
+    mRuntimeStack.xSize = 0;
+    
+    /* Push NULL to indicate lowest system ceiling. */
+    srpStackPush( &mSysCeilStack, NULL );
+}
+
+ResourceHandle_t srpSemaphoreCreateBinary(void) {
+    Resource_t *vResource = pvPortMalloc( sizeof( Resource_t ) );
+
+    if ( vResource != NULL ) {
+        vResource->xSemaphore = xSemaphoreCreateBinary();
+
+        if ( vResource->xSemaphore == NULL ) {
+            vPortFree( vResource );
+            vResource = NULL;
+        }
+    }
+    
+    vResource->xCeilPtr = NULL;
+    return (ResourceHandle_t) vResource;
+}
+
+/* This function is called from the task level */
+BaseType_t srpSemaphoreTake(ResourceHandle_t vResource, TickType_t xBlockTime) {
+    BaseType_t vVal;
+    StackType_t vTop;
+    
+    portENTER_CRITICAL();
+
+    vTop = srpSysCeilStackPeak();
+
+    configASSERT( pxCurrentTCB->xPreemptionLevel > vTop );
+    
+    srpSysCeilStackPush( pxCurrentTCB->xPreemptionLevel );
+
+    portEXIT_CRITICAL();
+    
+    
+    vVal = xSemaphoreTake( ( (Resource_t *) vResource )->xSemaphore, xBlockTime );
+
+    if ( vVal == pdFALSE ) {
+        portENTER_CRITICAL();        
+        
+        srpSysCeilStackPop();
+
+        portEXIT_CRITICAL();        
+    }
+
+    return vVal;
+}
+
+/* This function is called from the task level */
+BaseType_t srpSemaphoreGive(ResourceHandle_t vResource) {
+    BaseType_t vVal;
+    
+    vVal = xSempaphoreGive( ( (Resource_t *) vResource )->xSemaphore );
+
+    if ( vVal == pdFALSE ) {
+        return;
+    }
+
+    portENTER_CRITICAL();
+    
+    srpSysCeilStackPop();
+
+    portEXIT_CRITICAL();            
+}
+
+static StackType_t srpSysCeilStackPeak(void) {
+    StackType_t vStackVar;
+    
+    vStackVar = *(mSysCeilStack.xStack + mSysCeilStack.xSize - 1);
+    
+    return vStackVar;
+}
+
+static void srpSysCeilStackPop(void) {
+    configASSERT( mSysCeilStack.xSize > 1 );
+    
+    mSysCeilStack.xSize--;
+}
+
+static void srpSysCeilStackPush(StackType_T vStackVar) {
+
+    srpStackPush( &mSysCeilStack, vStackVar );
+    
+}
+
+static void srpStackPush(Stack_t *vStackT, StackType_t vStackVar) {
+    *(vStackT->xStack + vStackT->xSize) = vStackVar;
+    vStackT->xSize++;
+}
+
+void srpConfigToUseResource(ResourceHandle_t vResource, TaskHandle_t vTaskHandle) {
+    TCB_t *pxTCB;
+    Resource_t *pxResource;
+
+    pxTCB = (TCB_t *) vTaskHandle;
+    pxResource = (Resource_t *) vResource;
+    
+    if ( pxTCB->xPreemptionLevel > *pxResource->xCeilPtr ) {
+        pxResource->xCeilPtr = &pxTCB->xPreemptionLevel;
+    }
+}
+    
+#endif /* configUSE_SRP */
+
+
 
 #ifdef FREERTOS_MODULE_TEST
 	#include "tasks_test_access_functions.h"
 #endif
-

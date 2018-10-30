@@ -93,8 +93,7 @@ extern "C" {
 /**
  * task. h
  *
- * Type by which tasks are referenced.  For example, a call to xTaskCreate
- * returns (via a pointer parameter) an TaskHandle_t variable that can then
+ * Type by which tasks are referenced.  For example, a call to xTaskCreate * returns (via a pointer parameter) an TaskHandle_t variable that can then
  * be used as a parameter to vTaskDelete to delete the task.
  *
  * \defgroup TaskHandle_t TaskHandle_t
@@ -2270,6 +2269,46 @@ eSleepModeStatus eTaskConfirmSleepModeStatus( void ) PRIVILEGED_FUNCTION;
  * taken and return the handle of the task that has taken the mutex.
  */
 void *pvTaskIncrementMutexHeldCount( void ) PRIVILEGED_FUNCTION;
+
+#if( configUSE_SCHEDULER_EDF == 1 && configUSE_SRP == 1 )
+
+typedef void * ResourceHandle_t;
+
+/*
+ * Initializes the system ceiling and the runtime stack used for SRP.
+ */
+void srpInitSRPStacks(void);
+
+/*
+ * Create binary semaphore, see semphr.h for more details. Called before
+ * starting the scheduler.
+ */
+ResourceHandle_t srpSemaphoreCreateBinary(void);
+
+/*
+ * Take binary semaphore, see semphr.h for more details. As a consequence of acquiring
+ * a resource in the SRP protocol, the system ceiling is updated. Called by a task.
+ */
+BaseType_t srpSemaphoreTake(ResourceHandle_t vResource, TickType_t xBlockTime);
+
+/*
+ * Give binary semaphore, see semphr.h for more details. As a consequence of releasing
+ * a resource in the SRP protocol, the system ceiling is reduced. Called by a task.
+ */
+BaseType_t srpSemaphoreGive(ResourceHandle_t vResource);
+
+/**
+ * Inorder for a task to be allowed to use a shared resource protected by a
+ * semaphore, it must call this function to indicate that it is going to use that
+ * resource.
+ *
+ * @param xSemaphore The semaphore that is used to protect the shared resource.
+ * 
+ * @param xTaskHandle The task handle of the task using the resource.
+ */
+void srpConfigToUseResource(ResourceHandle_t vResouce, TaskHandle_t vTaskHandle);
+
+#endif /* configUSE_SRP */
 
 #ifdef __cplusplus
 }
