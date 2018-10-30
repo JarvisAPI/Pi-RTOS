@@ -359,6 +359,8 @@ is used in assert() statements. */
  * \defgroup xTaskCreate xTaskCreate
  * \ingroup Tasks
  */
+
+#define PRIORITY_EDF 1
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
     #if( configUSE_SCHEDULER_EDF == 1 )
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -366,6 +368,7 @@ is used in assert() statements. */
 							const uint16_t usStackDepth,
 							void * const pvParameters,
 							UBaseType_t uxPriority,
+                                                        TickType_t xWCET,
                                                         TickType_t xRelativeDeadline,
 							TaskHandle_t * const pxCreatedTask ) PRIVILEGED_FUNCTION;/*lint !e971 Unqualified char types are allowed for strings and single characters only. */
     #else

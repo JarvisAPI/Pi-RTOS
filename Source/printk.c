@@ -64,7 +64,7 @@ int printk(const char *fmt, ...) {
                 printnumk(10, num);
                 break;
             }
-            case 'u': printnumk(10, va_arg(vargs, uint64_t)); break;
+            case 'u': printnumk(10, va_arg(vargs, uint32_t)); break;
             case 'p': {
                 rpi_aux_mu_putc('0');
                 rpi_aux_mu_putc('x');

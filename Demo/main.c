@@ -15,8 +15,10 @@ const TickType_t xDelay = 10 / portTICK_PERIOD_MS;
 const char *str0 = "Ok I am Task1";
 const char *str1 = "Hey Task2 here";
 
-const TickType_t xTimingDelay1 = 1000 / portTICK_PERIOD_MS;
-const TickType_t xTimingDelay2 = 2900 / portTICK_PERIOD_MS;
+const TickType_t xTimingDelay1 = 2000 / portTICK_PERIOD_MS;
+const TickType_t xTimingDelay2 = 3000 / portTICK_PERIOD_MS;
+const TickType_t xTimingDelay3 = 4000 / portTICK_PERIOD_MS;
+
 
 void delay(uint32_t ms) {
     uint32_t i;
@@ -27,7 +29,7 @@ void delay(uint32_t ms) {
 void task1(void *pParam) {
 	int i;
     TickType_t start_tick, end_tick;
-    
+
     i = 0;
 	while(1) {
         start_tick = xTaskGetTickCount();
@@ -52,25 +54,39 @@ void task2(void *pParam) {
 	}
 }
 
+volatile static TickType_t xStartTime = 0;
 void TimingTestTask1(void *pParam) {
     TickType_t xLastWakeTime;
     xLastWakeTime = xTaskGetTickCount();
     while(1) {
-        printk("TimingTask1\r\n");
+        printk("Start TimingTask1\r\n");
+        delay( 200 );
+        printk("End TimingTask1\r\n");
         vTaskDelayUntil( &xLastWakeTime, xTimingDelay1 );
     }
 }
 
 void TimingTestTask2(void *pParam) {
     TickType_t xLastWakeTime;
-    xLastWakeTime = xTaskGetTickCount();
+    xLastWakeTime = xStartTime;
     while(1) {
-        for( int i = 0; i < 2000000; i++);
-        printk("TimingTask2\r\n");
+        printk("Start TimingTask2\r\n");
+        delay( 1000 );
+        printk("End TimingTask2\r\n");
         vTaskDelayUntil( &xLastWakeTime, xTimingDelay2 );
     }
 }
 
+void TimingTestTask3(void *pParam) {
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xStartTime;
+    while(1) {
+        printk("Start TimingTask3\r\n");
+        delay( 1500 );
+        printk("End TimingTask3\r\n");
+        vTaskDelayUntil( &xLastWakeTime, xTimingDelay3 );
+    }
+}
 
 /**
  *	This is the systems main entry, some call it a boot thread.
@@ -88,10 +104,12 @@ int main(void) {
     //xTaskCreate(task1, "LED_0", 128, (void *) 8, 0, 0,NULL);
     //xTaskCreate(task2, "LED_1", 128, (void *) 4, 0, 0,NULL);
 
-    xTaskCreate(TimingTestTask2, "LED_1", 128, (void *) 4, 1, xTimingDelay2, NULL);
-    xTaskCreate(TimingTestTask1, "LED_0", 128, (void *) 8, 1, xTimingDelay1, NULL);
+    xTaskCreate(TimingTestTask1, "LED_0", 256, NULL, 1, 200, xTimingDelay1, NULL);
+    xTaskCreate(TimingTestTask2, "LED_1", 256, NULL, 1, 1000, xTimingDelay2, NULL);
+    xTaskCreate(TimingTestTask3, "LED_2", 256, NULL, 1, 1500, xTimingDelay3, NULL);
 
     printSchedule();
+    xStartTime = xTaskGetTickCount();
     vTaskStartScheduler();
 
     /*

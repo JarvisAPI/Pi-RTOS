@@ -70,6 +70,7 @@
 /* Standard includes. */
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 /* Defining MPU_WRAPPERS_INCLUDED_FROM_API_FILE prevents task.h from redefining
 all the API functions to use the MPU wrappers.  That should only be done when
@@ -277,6 +278,7 @@ count overflows. */
 #define prvAddTaskToReadyList( pxTCB )																\
 	traceMOVED_TASK_TO_READY_STATE( pxTCB );														\
 	taskRECORD_READY_PRIORITY( ( pxTCB )->uxPriority );												\
+        ( pxTCB )->xStateListItem.xItemValue = pxTCB->xRelativeDeadline;\
 	vListInsert( &( pxReadyTasksLists[ ( pxTCB )->uxPriority ] ), &( ( pxTCB )->xStateListItem ) ); \
 	tracePOST_MOVED_TASK_TO_READY_STATE( pxTCB )
 /*-----------------------------------------------------------*/
@@ -380,6 +382,8 @@ typedef struct tskTaskControlBlock
 
         #if( configUSE_SCHEDULER_EDF == 1 )
                 TickType_t xRelativeDeadline;
+                TickType_t xCurrentRunTime;
+                TickType_t xWCET;
         #endif
 
 } tskTCB;
@@ -710,6 +714,33 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 #endif /* portUSING_MPU_WRAPPERS */
 /*-----------------------------------------------------------*/
 
+#define BOUND_LL( n ) (2 * (pow( 2, 1 / (double) n ) - 1 ))
+
+void verifyLLBound(void)
+{
+    // TODO Allow online by also checking waiting tasks/blocked tasks
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
+    double dLLBound = BOUND_LL( listCURRENT_LIST_LENGTH( readyList ));
+    double dCurrentUtilization = 0;
+
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+    while( currentItem != endMarker )
+    {
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        dCurrentUtilization += (double) tcb->xWCET / tcb->xRelativeDeadline;
+    }
+
+    printk("LL: %d!\r\n", (int)dLLBound);
+    printk("CR: %d!\r\n", (int)dCurrentUtilization);
+    if ( dCurrentUtilization > dLLBound )
+    {
+        printk("ELEN IS GAY!\r\n");
+        while(1);
+    }
+
+}
+
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
     #if( configUSE_SCHEDULER_EDF == 1 )
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -717,6 +748,7 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 							const uint16_t usStackDepth,
 							void * const pvParameters,
 							UBaseType_t uxPriority,
+                                                        TickType_t xWCET,
                                                         TickType_t xRelativeDeadline,
 							TaskHandle_t * const pxCreatedTask ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
     #else
@@ -797,12 +829,13 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 			}
 			#endif /* configSUPPORT_STATIC_ALLOCATION */
 
-			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
                         #if( configUSE_SCHEDULER_EDF == 1 )
                         {
                             pxNewTCB->xStateListItem.xItemValue = xRelativeDeadline;
                             pxNewTCB->xRelativeDeadline = xRelativeDeadline;
+                            pxNewTCB->xWCET = xWCET;
                         }
+			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
                         #endif /* configUSE_SCHEDULER_EDF */
 			prvAddNewTaskToReadyList( pxNewTCB );
 			xReturn = pdPASS;
@@ -812,6 +845,7 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 			xReturn = errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY;
 		}
 
+                verifyLLBound();
 		return xReturn;
 	}
 
@@ -946,6 +980,12 @@ UBaseType_t x;
 	{
 		pxNewTCB->ulRunTimeCounter = 0UL;
 	}
+        #if( configUSE_SCHEDULER_EDF == 1 )
+        {
+                pxNewTCB->xCurrentRunTime = 0;
+        }
+        #endif /* configUSE_SCHEDULER_EDF */
+
 	#endif /* configGENERATE_RUN_TIME_STATS */
 
 	#if ( portUSING_MPU_WRAPPERS == 1 )
@@ -1046,7 +1086,12 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB )
 			so far. */
 			if( xSchedulerRunning == pdFALSE )
 			{
+                            #if( configUSE_SCHEDULER_EDF == 1 )
+                                if( (pxCurrentTCB->uxPriority < pxNewTCB->uxPriority) ||
+                                    ( pxNewTCB->xStateListItem.xItemValue < pxCurrentTCB->xStateListItem.xItemValue))
+                            #else
 				if( pxCurrentTCB->uxPriority <= pxNewTCB->uxPriority )
+                            #endif
 				{
 					pxCurrentTCB = pxNewTCB;
 				}
@@ -1916,6 +1961,7 @@ BaseType_t xReturn;
 								( void * ) NULL,
 								( tskIDLE_PRIORITY | portPRIVILEGE_BIT ),
                                                                 0xFFFFFFFF,
+                                                                0xFFFFFFFF,
 								&xIdleTaskHandle ); /*lint !e961 MISRA exception, justified as it is not a redundant explicit cast to all supported compilers. */
 	}
 	#endif /* configSUPPORT_STATIC_ALLOCATION */
@@ -2689,6 +2735,12 @@ TickType_t xSmallestTick = 0xFFFFFFFF;
                                                 #endif
 						{
 							xSwitchRequired = pdTRUE;
+                                                        /*printk("TIME: %u\r\n", xConstTickCount );
+                                                        printk("ABOUT TO PREM: %s, %u, %u\r\n",
+                                                               pxCurrentTCB->pcTaskName,
+                                                               listGET_LIST_ITEM_VALUE(&(pxCurrentTCB->xStateListItem)),
+                                                               pxTCB->xRelativeDeadline);
+                                                               */
 						}
 						else
 						{

@@ -33,7 +33,7 @@ CFLAGS += -march=armv7-a -mtune=cortex-a7 -mfloat-abi=hard -mfpu=neon-vfpv4
 
 ASFLAGS += -march=armv7-a -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard
 
-LDFLAGS = 
+LDFLAGS = -lm
 
 .PHONY: all clean
 
