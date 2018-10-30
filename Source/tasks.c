@@ -720,8 +720,8 @@ void verifyLLBound(void)
 {
     // TODO Allow online by also checking waiting tasks/blocked tasks
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
-    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
-    float dLLBound = BOUND_LL( (float) listCURRENT_LIST_LENGTH( readyList ) );
+    //uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
+    //float dLLBound = BOUND_LL( (float) listCURRENT_LIST_LENGTH( readyList ) );
     double dCurrentUtilization = 0;
 
     ListItem_t const* endMarker = listGET_END_MARKER(readyList);
@@ -732,13 +732,13 @@ void verifyLLBound(void)
         dCurrentUtilization += (double) tcb->xWCET / tcb->xRelativeDeadline;
     }
 
-    printk("LL: %d!\r\n", (int)dLLBound);
+    //printk("LL: %d!\r\n", (int)dLLBound);
     printk("CR: %d!\r\n", (int)dCurrentUtilization);
-    if ( dCurrentUtilization > dLLBound )
+    /*if ( dCurrentUtilization > dLLBound )
     {
         printk("ELEN IS GAY!\r\n");
         while(1);
-    }
+    }*/
 
 }
 
