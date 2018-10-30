@@ -714,13 +714,14 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 #endif /* portUSING_MPU_WRAPPERS */
 /*-----------------------------------------------------------*/
 
-#define BOUND_LL( n ) (2 * (pow( 2, 1 / (double) n ) - 1 ))
+#define BOUND_LL( n ) ( 2 * ( powf( 2, 1 / (float) n ) - 1 ) )
 
 void verifyLLBound(void)
 {
     // TODO Allow online by also checking waiting tasks/blocked tasks
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
-    double dLLBound = BOUND_LL( listCURRENT_LIST_LENGTH( readyList ));
+    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
+    float dLLBound = BOUND_LL( (float) listCURRENT_LIST_LENGTH( readyList ) );
     double dCurrentUtilization = 0;
 
     ListItem_t const* endMarker = listGET_END_MARKER(readyList);
