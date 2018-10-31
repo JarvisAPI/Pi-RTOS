@@ -449,6 +449,19 @@ PRIVILEGED_DATA static volatile UBaseType_t uxSchedulerSuspended	= ( UBaseType_t
 
 /*lint +e956 */
 
+
+void busyWait( TickType_t ticks )
+{
+    while( pxCurrentTCB->xCurrentRunTime < ticks );
+    return;
+}
+
+TickType_t getTime( void )
+{
+    return xTickCount;
+}
+
+
 void printSchedule( void )
 {
     if ( pxCurrentTCB )
@@ -459,9 +472,9 @@ void printSchedule( void )
     ListItem_t* currentItem = listGET_HEAD_ENTRY( readyList );
     while( currentItem != endMarker ) {
         TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        printk("Task %s, deadline %d, remaining %d\r\n", tcb->pcTaskName,
-                                                         (uint64_t ) tcb->xRelativeDeadline,
-                                                         (uint64_t) currentItem->xItemValue);
+        printk("Task %s, deadline %u, remaining %u\r\n", tcb->pcTaskName,
+                                                         (uint32_t) tcb->xRelativeDeadline,
+                                                         (uint32_t) currentItem->xItemValue);
         currentItem = listGET_NEXT( currentItem );
     }
 }
@@ -735,7 +748,6 @@ void verifyLLBound(void)
         currentItem = listGET_NEXT( currentItem );
     }
 
-    printk("CR: %d!\r\n", x);
     if ( dCurrentUtilization > 1.0f )
     {
         printk("LL BOUND EXCEEDED!!!?!!??!?!?!?!\r\n");
@@ -2646,6 +2658,9 @@ TickType_t xSmallestTick = 0xFFFFFFFF;
 		/* Minor optimisation.  The tick count cannot change in this
 		block. */
 		const TickType_t xConstTickCount = xTickCount + 1;
+            #if( configUSE_SCHEDULER_EDF == 1 )
+                pxCurrentTCB->xCurrentRunTime++;
+            #endif
 
 		/* Increment the RTOS tick, switching the delayed and overflowed
 		delayed lists if it wraps to 0. */
@@ -2720,6 +2735,7 @@ TickType_t xSmallestTick = 0xFFFFFFFF;
 					list. */
                                         #if( configUSE_SCHEDULER_EDF == 1 )
                                             pxTCB->xStateListItem.xItemValue = pxTCB->xRelativeDeadline;
+                                            pxTCB->xCurrentRunTime = 0;
                                          #endif
 					prvAddTaskToReadyList( pxTCB );
 

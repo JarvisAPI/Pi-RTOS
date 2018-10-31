@@ -76,6 +76,7 @@
 #endif
 
 #include "list.h"
+#include "FreeRTOS.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -103,7 +104,9 @@ extern "C" {
 typedef void * TaskHandle_t;
 
 
+void busyWait( TickType_t ticks );
 void printSchedule( void );
+TickType_t getTime( void );
 
 /*
  * Defines the prototype to which the application task hook function must
