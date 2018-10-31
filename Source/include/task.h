@@ -76,6 +76,7 @@
 #endif
 
 #include "list.h"
+#include "FreeRTOS.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,7 +103,9 @@ extern "C" {
 typedef void * TaskHandle_t;
 
 
+void busyWait( TickType_t ticks );
 void printSchedule( void );
+TickType_t getTime( void );
 
 /*
  * Defines the prototype to which the application task hook function must
@@ -369,6 +372,7 @@ is used in assert() statements. */
 							UBaseType_t uxPriority,
                             TickType_t xWCET,
                             TickType_t xRelativeDeadline,
+                            TickType_t xPeriod,
 							TaskHandle_t * const pxCreatedTask ) PRIVILEGED_FUNCTION;/*lint !e971 Unqualified char types are allowed for strings and single characters only. */
     #else
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -2273,6 +2277,7 @@ eSleepModeStatus eTaskConfirmSleepModeStatus( void ) PRIVILEGED_FUNCTION;
  */
 void *pvTaskIncrementMutexHeldCount( void ) PRIVILEGED_FUNCTION;
 
+
 #if( configUSE_SCHEDULER_EDF == 1 && configUSE_SRP == 1 )
 
 typedef void * ResourceHandle_t;
@@ -2312,6 +2317,8 @@ BaseType_t srpSemaphoreGive(ResourceHandle_t vResource);
 void srpConfigToUseResource(ResourceHandle_t vResouce, TaskHandle_t vTaskHandle);
 
 #endif /* configUSE_SRP */
+
+void verifyEDFExactBound(void);
 
 #ifdef __cplusplus
 }

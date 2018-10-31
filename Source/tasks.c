@@ -84,9 +84,12 @@ task.h is included from an application file. */
 #include "StackMacros.h"
 #include "printk.h"
 
+
 #if( configUSE_SRP == 1 )
 #include <semphr.h>
 #endif
+
+extern void reset(void);
 
 /* Lint e961 and e750 are suppressed as a MISRA exception justified because the
 MPU ports require MPU_WRAPPERS_INCLUDED_FROM_API_FILE to be defined for the
@@ -388,8 +391,8 @@ typedef struct tskTaskControlBlock
         TickType_t xRelativeDeadline;
         TickType_t xCurrentRunTime;
         TickType_t xWCET;
+        TickType_t xPeriod;
     #endif
-
 
     #if( configUSE_SRP == 1 )
         StackType_t xPreemptionLevel;
@@ -457,6 +460,19 @@ PRIVILEGED_DATA static volatile UBaseType_t uxSchedulerSuspended	= ( UBaseType_t
 
 /*lint +e956 */
 
+
+void busyWait( TickType_t ticks )
+{
+    while( pxCurrentTCB->xCurrentRunTime < ticks );
+    return;
+}
+
+TickType_t getTime( void )
+{
+    return xTickCount;
+}
+
+
 void printSchedule( void )
 {
     if ( pxCurrentTCB )
@@ -467,9 +483,9 @@ void printSchedule( void )
     ListItem_t* currentItem = listGET_HEAD_ENTRY( readyList );
     while( currentItem != endMarker ) {
         TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        printk("Task %s, deadline %d, remaining %d\r\n", tcb->pcTaskName,
-                                                         (uint64_t ) tcb->xRelativeDeadline,
-                                                         (uint64_t) currentItem->xItemValue);
+        printk("Task %s, deadline %u, remaining %u\r\n", tcb->pcTaskName,
+                                                         (uint32_t) tcb->xRelativeDeadline,
+                                                         (uint32_t) currentItem->xItemValue);
         currentItem = listGET_NEXT( currentItem );
     }
 }
@@ -765,10 +781,86 @@ void verifyLLBound(void)
     printk("LL: %d!\r\n", (int)(dLLBound * 100));
     printk("CR: %d!\r\n", (int)(dCurrentUtilization * 100));
     if ( dCurrentUtilization > dLLBound )
+        printk("Failed to meet LL bound requirements!\r\n");
+}
+
+void verifyEDFExactBound(void)
+{
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
+    float sum = 0;
+    float P = 0;
+    float U = 0;
+    float D = 0;
+    float L = 0;
+    float dTotalUtilization = 0;
+    float lStar = 0;
+
+    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
+
+    // Find L*
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    while( currentItem != endMarker )
     {
-        printk("ELEN IS GAY!\r\n");
-        while(1);
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        P = (float) tcb->xPeriod;
+        D = (float) tcb->xRelativeDeadline;
+        U = (float) tcb->xWCET / tcb->xPeriod;
+        dTotalUtilization += U;
+        lStar += (P - D) * U;
+        printk("Current L* is: %d\r\n", (int32_t) lStar);
+        printk("Current U is: %d\r\n", (int32_t) dTotalUtilization);
+        currentItem = listGET_NEXT( currentItem );
     }
+    if( dTotalUtilization > 1 ) {
+        return;
+    }
+    lStar /= ( 1 - dTotalUtilization );
+    int32_t iLStar = lStar;
+    printk("L* is: %d\r\n", iLStar);
+
+    //check all absolute deadlines by iterating through all periods of each task
+    currentItem = listGET_HEAD_ENTRY(readyList);
+    while( currentItem != endMarker )
+    {
+        //get task parameters
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        P = (float) tcb->xPeriod;
+        D = (float) tcb->xRelativeDeadline;
+        U = (float) tcb->xWCET / tcb->xPeriod;
+        printk( "Started new task!\r\n");
+
+        //verify that demand at time L is less than L, where L is equal to
+        //the task's absolute deadlines up to lStar
+        for( TickType_t L = D; L <= lStar; L += P )
+        {
+            float totalDemand = 0;
+            //find total demand at time L
+            ListItem_t* currentItem2 = listGET_HEAD_ENTRY(readyList);
+            ListItem_t const* endMarker2 = listGET_END_MARKER(readyList);
+            while( currentItem2 != endMarker2 )
+            {
+                TCB_t* tcb2 = listGET_LIST_ITEM_OWNER( currentItem2 );
+                float P2 = tcb2->xPeriod;
+                float D2 = tcb2->xRelativeDeadline;
+                float C2 = tcb2->xWCET;
+                int temp = ( L + P2 - D2 ) / P2;
+                totalDemand += temp * C2;
+                currentItem2 = listGET_NEXT( currentItem2 );
+            }
+            if( totalDemand > L ) {
+                printk( "Fail at L = %d, total demand = %d\r\n", (int32_t) L, (int32_t) totalDemand);
+                while(1);
+                return ;
+            }
+            printk( "Success at L = %d, total demand = %d\r\n", (int32_t) L, (int32_t) totalDemand);
+        }
+
+        currentItem = listGET_NEXT( currentItem );
+    }
+    printk("DONE!\r\n");
+    while(1);
+    return;
 }
 
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
@@ -780,6 +872,7 @@ void verifyLLBound(void)
 							UBaseType_t uxPriority,
                             TickType_t xWCET,
                             TickType_t xRelativeDeadline,
+                            TickType_t xPeriod,                            
 							TaskHandle_t * const pxCreatedTask ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
     #else
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -862,11 +955,11 @@ void verifyLLBound(void)
             #if( configUSE_SCHEDULER_EDF == 1 )
             {
                 pxNewTCB->xStateListItem.xItemValue = xRelativeDeadline;
+                pxNewTCB->xPeriod = xPeriod;
                 pxNewTCB->xRelativeDeadline = xRelativeDeadline;
                 pxNewTCB->xWCET = xWCET;
             }
-            #endif /* configUSE_SCHEDULER_EDF */
-           
+                        
 			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
 			prvAddNewTaskToReadyList( pxNewTCB );
 			xReturn = pdPASS;
@@ -877,6 +970,7 @@ void verifyLLBound(void)
 		}
 
         verifyLLBound();
+
 		return xReturn;
 	}
 
@@ -2026,6 +2120,7 @@ BaseType_t xReturn;
 								( tskIDLE_PRIORITY | portPRIVILEGE_BIT ),
                                                                 0xFFFFFFFF,
                                                                 0xFFFFFFFF,
+                                                                0xFFFFFFFF,
 								&xIdleTaskHandle ); /*lint !e961 MISRA exception, justified as it is not a redundant explicit cast to all supported compilers. */
 	}
 	#endif /* configSUPPORT_STATIC_ALLOCATION */
@@ -2663,6 +2758,7 @@ implementations require configUSE_TICKLESS_IDLE to be set to a value other than
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
+
 BaseType_t xTaskIncrementTick( void )
 {
 TCB_t * pxTCB;
@@ -2693,7 +2789,7 @@ uint32_t *vSysCeilPtr;
             }
             else
             {
-                printk("MISSED DEADLINE!\r\n");
+                printk("Missed Deadline, will reset processor!\r\n");
                 while(1);
             }
             currentItem = listGET_NEXT( currentItem );
@@ -2710,6 +2806,9 @@ uint32_t *vSysCeilPtr;
 		/* Minor optimisation.  The tick count cannot change in this
 		block. */
 		const TickType_t xConstTickCount = xTickCount + 1;
+            #if( configUSE_SCHEDULER_EDF == 1 )
+                pxCurrentTCB->xCurrentRunTime++;
+            #endif
 
 		/* Increment the RTOS tick, switching the delayed and overflowed
 		delayed lists if it wraps to 0. */
@@ -2784,6 +2883,7 @@ uint32_t *vSysCeilPtr;
 					list. */
                                         #if( configUSE_SCHEDULER_EDF == 1 )
                                             pxTCB->xStateListItem.xItemValue = pxTCB->xRelativeDeadline;
+                                            pxTCB->xCurrentRunTime = 0;
                                          #endif
 					prvAddTaskToReadyList( pxTCB );
 

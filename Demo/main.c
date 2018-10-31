@@ -16,7 +16,7 @@ void TimingTestTask1(void *pParam) {
     xLastWakeTime = xTaskGetTickCount();
     while(1) {
         printk("Start TimingTask1\r\n");
-        delay( 200 );
+        busyWait( 200 );
         printk("End TimingTask1\r\n");
         vTaskDelayUntil( &xLastWakeTime, xTimingDelay1 );
     }
@@ -27,7 +27,7 @@ void TimingTestTask2(void *pParam) {
     xLastWakeTime = xStartTime;
     while(1) {
         printk("Start TimingTask2\r\n");
-        delay( 1000 );
+        busyWait( 1000 );
         printk("End TimingTask2\r\n");
         vTaskDelayUntil( &xLastWakeTime, xTimingDelay2 );
     }
@@ -37,9 +37,9 @@ void TimingTestTask3(void *pParam) {
     TickType_t xLastWakeTime;
     xLastWakeTime = xStartTime;
     while(1) {
-        printk("Start TimingTask3\r\n");
-        delay( 1500 );
-        printk("End TimingTask3\r\n");
+        printk("Start TimingTask3: %u\r\n", getTime());
+        busyWait( 1500 );
+        printk("End TimingTask3: %u\r\n", getTime());
         vTaskDelayUntil( &xLastWakeTime, xTimingDelay3 );
     }
 }
@@ -60,11 +60,12 @@ int main(void) {
     //xTaskCreate(task1, "LED_0", 128, (void *) 8, 0, 0,NULL);
     //xTaskCreate(task2, "LED_1", 128, (void *) 4, 0, 0,NULL);
 
-    xTaskCreate(TimingTestTask1, "LED_0", 256, NULL, 1, 200, xTimingDelay1, NULL);
-    xTaskCreate(TimingTestTask2, "LED_1", 256, NULL, 1, 1000, xTimingDelay2, NULL);
-    xTaskCreate(TimingTestTask3, "LED_2", 256, NULL, 1, 1500, xTimingDelay3, NULL);
+    xTaskCreate(TimingTestTask1, "LED_0", 256, NULL, 1, 200, 1500, xTimingDelay1, NULL);
+    xTaskCreate(TimingTestTask2, "LED_1", 256, NULL, 1, 1000, 2500, xTimingDelay2, NULL);
+    xTaskCreate(TimingTestTask3, "LED_2", 256, NULL, 1, 1500, 3500, xTimingDelay3, NULL);
 
     printSchedule();
+    verifyEDFExactBound();
     xStartTime = xTaskGetTickCount();
     vTaskStartScheduler();
 

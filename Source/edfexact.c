@@ -62,28 +62,29 @@ bool edfexact(void)
         dTotalUtilization += U;
         lStar += (P - D) * U;
         currentItem = listGET_NEXT( currentItem );
-        
+
         //verify that demand at time L is less than L, where L is equal to
         //the task's absolute deadlines up to lStar
         for( float L = P; L <= lStar; L += P )
         {
             float totalDemand = 0;
-            
-            //find total demand at time L
+
             ListItem_t* currentItem2 = listGET_HEAD_ENTRY(readyList);
             ListItem_t const* endMarker2 = listGET_END_MARKER(readyList);
+
             while( currentItem2 != endMarker2 )
             {
                 TCB_t* tcb2 = listGET_LIST_ITEM_OWNER( currentItem2 );
-                float P = tcb2->xPeriod;
-                float D = tcb2->xRelativeDeadline;
-                float C = tcb2->xWCET;
-                int temp = ( L + P - D ) / P;
-                totalDemand += temp * C;
-    
+                float P2 = tcb2->xPeriod;
+                float D2 = tcb2->xRelativeDeadline;
+                float C2 = tcb2->xWCET;
+                int temp = ( L + P2 - D2 ) / P2;
+                totalDemand += temp * C2;
+
                 currentItem = listGET_NEXT( currentItem );
             }
             if( totalDemand > L ) {
+                while(1);
                 return false;
             }
         }
