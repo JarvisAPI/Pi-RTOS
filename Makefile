@@ -25,6 +25,8 @@ SOURCES = Demo/main.c \
           Source/portable/MemMang/heap_4.c \
           Source/printk.c \
           Source/assert.c \
+          Source/queue.c \
+          Source/string.c \
 
 OBJECTS = $(patsubst %.c,build/%.o,$(SOURCES))
 

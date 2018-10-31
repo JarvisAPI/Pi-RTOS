@@ -84,6 +84,10 @@ task.h is included from an application file. */
 #include "StackMacros.h"
 #include "printk.h"
 
+#if( configUSE_SRP == 1 )
+#include <semphr.h>
+#endif
+
 /* Lint e961 and e750 are suppressed as a MISRA exception justified because the
 MPU ports require MPU_WRAPPERS_INCLUDED_FROM_API_FILE to be defined for the
 header files above, but not in this file, in order to generate the correct
@@ -625,6 +629,27 @@ static void prvInitialiseNewTask( 	TaskFunction_t pxTaskCode,
  * under the control of the scheduler.
  */
 static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
+
+#if( configUSE_SRP == 1 )
+typedef struct Resource_s {
+    uint32_t *xCeilPtr; // Pointer to the resource ceiling value of a task
+    SemaphoreHandle_t xSemaphore;
+} Resource_t;
+
+typedef struct Stack_s {
+    StackType_t *xStack;
+    size_t xSize;
+    size_t xMaxSize;
+} Stack_t;
+
+static StackType_t srpSysCeilStackPeak(void);
+
+static void srpSysCeilStackPop(void);
+
+static void srpSysCeilStackPush(StackType_t vStackVar);
+
+static void srpStackPush(Stack_t *vStackT, StackType_t vStackVar);
+#endif /* configUSE_SRP */
 
 /*-----------------------------------------------------------*/
 
@@ -2780,8 +2805,9 @@ uint32_t *vSysCeilPtr;
                             {
                                 vSysCeilPtr = (uint32_t *) srpSysCeilStackPeak();
                                 
-                                if ( pxTCB->xPreemptionLevel > *vSysCeilPtr ) {
-                                    xSwichRequired = pdTRUE;
+                                if ( vSysCeilPtr == NULL ||
+                                     pxTCB->xPreemptionLevel > *vSysCeilPtr ) {
+                                    xSwitchRequired = pdTRUE;
                                 }
                             }    
                             #else
@@ -2809,7 +2835,8 @@ uint32_t *vSysCeilPtr;
                 {
                     vSysCeilPtr = (uint32_t *) srpSysCeilStackPeak();
                                 
-                    if ( pxTCB->xPreemptionLevel > *vSysCeilPtr ) {
+                    if ( vSysCeilPtr == NULL ||
+                         pxTCB->xPreemptionLevel > *vSysCeilPtr ) {
                         xSwichRequired = pdTRUE;
                     }
                 }    
@@ -5010,25 +5037,15 @@ const TickType_t xConstTickCount = xTickCount;
 #endif
 
 #ifndef MAX_RUNTIME_STACK_DEPTH
-    #define MAX_RUNTIME_STACK_DEPTH 500 // Number of stack variables that stack can hold
+    #define MAX_RUNTIME_STACK_DEPTH 100 // Number of stack variables that stack can hold
 #endif
-
-typedef Resource_s {
-    uint32_t *xCeilPtr; // Pointer to the resource ceiling value of a task
-    QueueHandle_t xSemaphore;
-} Resource_t;
-
-typedef Stack_s {
-    StackType_t *xStack;
-    size_t xSize;
-    size_t xMaxSize;
-} Stack_t;
 
 /* Invariant: The size of (number of values in) mSysCeilStack should always be at least 1. */
 static Stack_t mSysCeilStack;
 static Stack_t mRuntimeStack;
 
-void srpInitSRPStacks(void) {
+BaseType_t srpInitSRPStacks(void) {
+    printk("Called srpInitSRPStacks()\r\n");
     mSysCeilStack.xMaxSize = MAX_SYS_CEIL_LEVELS * sizeof( StackType_t );
     
     mSysCeilStack.xStack = pvPortMalloc( mSysCeilStack.xMaxSize );
@@ -5041,14 +5058,18 @@ void srpInitSRPStacks(void) {
         if ( mRuntimeStack.xStack == NULL ) {
             vPortFree( mSysCeilStack.xStack );
             mSysCeilStack.xStack = NULL;
-            return;
+            return pdFALSE;
         }
     }
     mSysCeilStack.xSize = 0;
     mRuntimeStack.xSize = 0;
     
     /* Push NULL to indicate lowest system ceiling. */
-    srpStackPush( &mSysCeilStack, NULL );
+    printk("Before init Stack size: %u\r\n", mSysCeilStack.xSize);    
+    srpSysCeilStackPush( (StackType_t) NULL );
+    printk("After init Stack size: %u\r\n", mSysCeilStack.xSize);
+
+    return pdTRUE;
 }
 
 ResourceHandle_t srpSemaphoreCreateBinary(void) {
@@ -5056,35 +5077,48 @@ ResourceHandle_t srpSemaphoreCreateBinary(void) {
 
     if ( vResource != NULL ) {
         vResource->xSemaphore = xSemaphoreCreateBinary();
-
+        printk("OnCreate Semaphore: 0x%x\r\n", vResource->xSemaphore);
+        
         if ( vResource->xSemaphore == NULL ) {
             vPortFree( vResource );
             vResource = NULL;
         }
+        else {
+            vResource->xCeilPtr = NULL;
+            xSemaphoreGive( vResource->xSemaphore );
+        }
     }
-    
-    vResource->xCeilPtr = NULL;
     return (ResourceHandle_t) vResource;
 }
 
 /* This function is called from the task level */
-BaseType_t srpSemaphoreTake(ResourceHandle_t vResource, TickType_t xBlockTime) {
+BaseType_t srpSemaphoreTake(ResourceHandle_t vResourceHandle, TickType_t xBlockTime) {
     BaseType_t vVal;
-    StackType_t vTop;
+    StackType_t *vTopPtr;
+    Resource_t *vResource;
+
+    vResource = (Resource_t *) vResourceHandle;
     
     portENTER_CRITICAL();
 
-    vTop = srpSysCeilStackPeak();
+    printk("Stack size: %u\r\n", mSysCeilStack.xSize);
+    vTopPtr = (StackType_t *) srpSysCeilStackPeak();
 
-    configASSERT( pxCurrentTCB->xPreemptionLevel > vTop );
+    printk("vTopPtr: 0x%x\r\n", vTopPtr);
+    if (vTopPtr != NULL) {
+        printk("*vTopPtr: %u\r\n", *vTopPtr);
+    }
+    configASSERT( vTopPtr == NULL || pxCurrentTCB->xPreemptionLevel > *vTopPtr );
     
-    srpSysCeilStackPush( pxCurrentTCB->xPreemptionLevel );
-
+    srpSysCeilStackPush( (StackType_t) &pxCurrentTCB->xPreemptionLevel );
+    printk("After push Stack size: %u\r\n", mSysCeilStack.xSize);
     portEXIT_CRITICAL();
     
-    
-    vVal = xSemaphoreTake( ( (Resource_t *) vResource )->xSemaphore, xBlockTime );
+    printk("Semaphore: 0x%x\r\n", vResource->xSemaphore);
+    vVal = xSemaphoreTake( vResource->xSemaphore, xBlockTime );
+    printk("here, vVal: %u\r\n", (uint32_t) vVal);
 
+    printk("After take Stack size: %u\r\n", mSysCeilStack.xSize);    
     if ( vVal == pdFALSE ) {
         portENTER_CRITICAL();        
         
@@ -5097,24 +5131,33 @@ BaseType_t srpSemaphoreTake(ResourceHandle_t vResource, TickType_t xBlockTime) {
 }
 
 /* This function is called from the task level */
-BaseType_t srpSemaphoreGive(ResourceHandle_t vResource) {
+BaseType_t srpSemaphoreGive(ResourceHandle_t vResourceHandle) {
     BaseType_t vVal;
+    Resource_t *vResource;
+
+    vResource = (Resource_t *) vResourceHandle;
     
-    vVal = xSempaphoreGive( ( (Resource_t *) vResource )->xSemaphore );
+    vVal = xSemaphoreGive( vResource->xSemaphore );
 
     if ( vVal == pdFALSE ) {
-        return;
+        return pdFALSE;
     }
 
     portENTER_CRITICAL();
-    
-    srpSysCeilStackPop();
 
-    portEXIT_CRITICAL();            
+    printk("Popping stack\r\n");
+    srpSysCeilStackPop();
+    printk("After poppint stack\r\n");
+
+    portEXIT_CRITICAL();
+
+    return pdTRUE;
 }
 
 static StackType_t srpSysCeilStackPeak(void) {
     StackType_t vStackVar;
+
+    configASSERT(mSysCeilStack.xStack != NULL);
     
     vStackVar = *(mSysCeilStack.xStack + mSysCeilStack.xSize - 1);
     
@@ -5122,30 +5165,36 @@ static StackType_t srpSysCeilStackPeak(void) {
 }
 
 static void srpSysCeilStackPop(void) {
+    printk("SysCeil Stack: 0x%x\r\n", mSysCeilStack.xStack);
+    printk("SysCeil StackSize: %u\r\n", mSysCeilStack.xSize);
+    configASSERT( mSysCeilStack.xStack != NULL );
     configASSERT( mSysCeilStack.xSize > 1 );
     
     mSysCeilStack.xSize--;
 }
 
-static void srpSysCeilStackPush(StackType_T vStackVar) {
+static void srpSysCeilStackPush(StackType_t vStackVar) {
 
     srpStackPush( &mSysCeilStack, vStackVar );
     
 }
 
 static void srpStackPush(Stack_t *vStackT, StackType_t vStackVar) {
+    configASSERT(vStackT != NULL);
+    
     *(vStackT->xStack + vStackT->xSize) = vStackVar;
     vStackT->xSize++;
 }
 
-void srpConfigToUseResource(ResourceHandle_t vResource, TaskHandle_t vTaskHandle) {
+void srpConfigToUseResource(ResourceHandle_t vResourceHandle, TaskHandle_t vTaskHandle) {
     TCB_t *pxTCB;
     Resource_t *pxResource;
 
     pxTCB = (TCB_t *) vTaskHandle;
-    pxResource = (Resource_t *) vResource;
+    pxResource = (Resource_t *) vResourceHandle;
     
-    if ( pxTCB->xPreemptionLevel > *pxResource->xCeilPtr ) {
+    if ( pxResource->xCeilPtr == NULL ||
+         pxTCB->xPreemptionLevel > *pxResource->xCeilPtr ) {
         pxResource->xCeilPtr = &pxTCB->xPreemptionLevel;
     }
 }

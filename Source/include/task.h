@@ -367,8 +367,8 @@ is used in assert() statements. */
 							const uint16_t usStackDepth,
 							void * const pvParameters,
 							UBaseType_t uxPriority,
-                                                        TickType_t xWCET,
-                                                        TickType_t xRelativeDeadline,
+                            TickType_t xWCET,
+                            TickType_t xRelativeDeadline,
 							TaskHandle_t * const pxCreatedTask ) PRIVILEGED_FUNCTION;/*lint !e971 Unqualified char types are allowed for strings and single characters only. */
     #else
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -2280,7 +2280,7 @@ typedef void * ResourceHandle_t;
 /*
  * Initializes the system ceiling and the runtime stack used for SRP.
  */
-void srpInitSRPStacks(void);
+BaseType_t srpInitSRPStacks(void);
 
 /*
  * Create binary semaphore, see semphr.h for more details. Called before

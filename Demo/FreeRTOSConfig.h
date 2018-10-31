@@ -138,5 +138,8 @@ NVIC value of 255. */
 /* Chooses the scheduling algorithm */
 #define configUSE_SCHEDULER_EDF 1
 
+/* Choose the resource sharing protocol */
+#define configUSE_SRP 1
+
 #endif /* FREERTOS_CONFIG_H */
 
