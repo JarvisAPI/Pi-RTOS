@@ -733,27 +733,23 @@ void verifyLLBound(void)
 {
     // TODO Allow online by also checking waiting tasks/blocked tasks
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
-    float dCurrentUtilization = 0;
-
-
     uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
-    //float dLLBound = BOUND_LL( (float) ulNumTasks );
+    float dLLBound = BOUND_LL( (float) ulNumTasks );
+    double dCurrentUtilization = 0;
 
     ListItem_t const* endMarker = listGET_END_MARKER(readyList);
     ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
     while( currentItem != endMarker )
     {
         TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        dCurrentUtilization += (float) tcb->xWCET / tcb->xRelativeDeadline;
+        dCurrentUtilization += (double) tcb->xWCET / tcb->xRelativeDeadline;
         currentItem = listGET_NEXT( currentItem );
     }
 
-    if ( dCurrentUtilization > 1.0f )
-    {
-        printk("LL BOUND EXCEEDED!!!?!!??!?!?!?!\r\n");
-        while(1);
-    }
-
+    printk("LL: %d!\r\n", (int)(dLLBound * 100));
+    printk("CR: %d!\r\n", (int)(dCurrentUtilization * 100));
+    if ( dCurrentUtilization > dLLBound )
+        printk("Failed to meet LL bound requirements!\r\n");
 }
 
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
@@ -860,7 +856,7 @@ void verifyLLBound(void)
 			xReturn = errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY;
 		}
 
-                verifyLLBound();
+        verifyLLBound();
 		return xReturn;
 	}
 
