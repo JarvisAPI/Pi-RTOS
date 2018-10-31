@@ -70,11 +70,12 @@ int main(void) {
     //xTaskCreate(task1, "LED_0", 128, (void *) 8, 0, 0,NULL);
     //xTaskCreate(task2, "LED_1", 128, (void *) 4, 0, 0,NULL);
 
-    xTaskCreate(TimingTestTask1, "LED_0", 256, NULL, 1, 200, xTimingDelay1, xTimingDelay1, NULL);
-    xTaskCreate(TimingTestTask2, "LED_1", 256, NULL, 1, 1000, xTimingDelay2, xTimingDelay2, NULL);
-    xTaskCreate(TimingTestTask3, "LED_2", 256, NULL, 1, 1500, xTimingDelay3, xTimingDelay3, NULL);
+    xTaskCreate(TimingTestTask1, "LED_0", 256, NULL, 1, 200, 1500, xTimingDelay1, NULL);
+    xTaskCreate(TimingTestTask2, "LED_1", 256, NULL, 1, 1000, 2500, xTimingDelay2, NULL);
+    xTaskCreate(TimingTestTask3, "LED_2", 256, NULL, 1, 1500, 3500, xTimingDelay3, NULL);
 
     printSchedule();
+    verifyEDFExactBound();
     xStartTime = xTaskGetTickCount();
     vTaskStartScheduler();
 

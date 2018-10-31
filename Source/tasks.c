@@ -754,6 +754,85 @@ void verifyLLBound(void)
         printk("Failed to meet LL bound requirements!\r\n");
 }
 
+void verifyEDFExactBound(void)
+{
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
+    float sum = 0;
+    float P = 0;
+    float U = 0;
+    float D = 0;
+    float L = 0;
+    float dTotalUtilization = 0;
+    float lStar = 0;
+
+    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
+
+    // Find L*
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    while( currentItem != endMarker )
+    {
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        P = (float) tcb->xPeriod;
+        D = (float) tcb->xRelativeDeadline;
+        U = (float) tcb->xWCET / tcb->xPeriod;
+        dTotalUtilization += U;
+        lStar += (P - D) * U;
+        printk("Current L* is: %d\r\n", (int32_t) lStar);
+        printk("Current U is: %d\r\n", (int32_t) dTotalUtilization);
+        currentItem = listGET_NEXT( currentItem );
+    }
+    if( dTotalUtilization > 1 ) {
+        return;
+    }
+    lStar /= ( 1 - dTotalUtilization );
+    int32_t iLStar = lStar;
+    printk("L* is: %d\r\n", iLStar);
+
+    //check all absolute deadlines by iterating through all periods of each task
+    currentItem = listGET_HEAD_ENTRY(readyList);
+    while( currentItem != endMarker )
+    {
+        //get task parameters
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        P = (float) tcb->xPeriod;
+        D = (float) tcb->xRelativeDeadline;
+        U = (float) tcb->xWCET / tcb->xPeriod;
+        printk( "Started new task!\r\n");
+
+        //verify that demand at time L is less than L, where L is equal to
+        //the task's absolute deadlines up to lStar
+        for( TickType_t L = D; L <= lStar; L += P )
+        {
+            float totalDemand = 0;
+            //find total demand at time L
+            ListItem_t* currentItem2 = listGET_HEAD_ENTRY(readyList);
+            ListItem_t const* endMarker2 = listGET_END_MARKER(readyList);
+            while( currentItem2 != endMarker2 )
+            {
+                TCB_t* tcb2 = listGET_LIST_ITEM_OWNER( currentItem2 );
+                float P2 = tcb2->xPeriod;
+                float D2 = tcb2->xRelativeDeadline;
+                float C2 = tcb2->xWCET;
+                int temp = ( L + P2 - D2 ) / P2;
+                totalDemand += temp * C2;
+                currentItem2 = listGET_NEXT( currentItem2 );
+            }
+            if( totalDemand > L ) {
+                printk( "Fail at L = %d, total demand = %d\r\n", (int32_t) L, (int32_t) totalDemand);
+                while(1);
+                return ;
+            }
+            printk( "Success at L = %d, total demand = %d\r\n", (int32_t) L, (int32_t) totalDemand);
+        }
+
+        currentItem = listGET_NEXT( currentItem );
+    }
+    printk("DONE!\r\n");
+    while(1);
+    return;
+}
+
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
     #if( configUSE_SCHEDULER_EDF == 1 )
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -861,6 +940,7 @@ void verifyLLBound(void)
 		}
 
         verifyLLBound();
+
 		return xReturn;
 	}
 

@@ -2278,6 +2278,8 @@ eSleepModeStatus eTaskConfirmSleepModeStatus( void ) PRIVILEGED_FUNCTION;
  */
 void *pvTaskIncrementMutexHeldCount( void ) PRIVILEGED_FUNCTION;
 
+void verifyEDFExactBound(void);
+
 #ifdef __cplusplus
 }
 #endif
