@@ -16,6 +16,9 @@ SOURCES = Demo/main.c \
           Demo/Drivers/rpi_aux.c \
           Source/tasks.c \
           Source/list.c \
+          Source/powf.c \
+          Source/sqrt.c \
+          Source/sqrtf.c \
           Source/portable/GCC/RaspberryPi/port.c \
           Source/portable/GCC/RaspberryPi/portISR.c \
           Source/portable/GCC/RaspberryPi/portASM.c \

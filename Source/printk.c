@@ -39,7 +39,7 @@ static void printnum_helper(uint8_t base, uint32_t num) {
  * @param base 8, 10, 16
  * @param num the number to print
  */
-static void printnumk(uint8_t base, uint64_t num) {
+static void printnumk(uint8_t base, uint32_t num) {
     if (num == 0) {
         rpi_aux_mu_putc('0');
         return;
@@ -54,9 +54,9 @@ int printk(const char *fmt, ...) {
     while(*fmt) {
         if (*fmt == '%') {
             switch(*(fmt+1)) {
-            case 'o': printnumk(8, va_arg(vargs, uint64_t)); break;
+            case 'o': printnumk(8, va_arg(vargs, uint32_t)); break;
             case 'd': {
-                int64_t num = va_arg(vargs, int64_t);
+                int32_t num = va_arg(vargs, int32_t);
                 if (num < 0) {
                     rpi_aux_mu_putc('-');
                     num *= -1;
@@ -64,13 +64,13 @@ int printk(const char *fmt, ...) {
                 printnumk(10, num);
                 break;
             }
-            case 'u': printnumk(10, va_arg(vargs, uint64_t)); break;
+            case 'u': printnumk(10, va_arg(vargs, uint32_t)); break;
             case 'p': {
                 rpi_aux_mu_putc('0');
                 rpi_aux_mu_putc('x');
                 printnumk(16, va_arg(vargs, uint32_t)); break;
             }
-            case 'x': printnumk(16, va_arg(vargs, uint64_t)); break;
+            case 'x': printnumk(16, va_arg(vargs, uint32_t)); break;
             case 'c': rpi_aux_mu_putc(va_arg(vargs, uint32_t)); break;
             case 's': {
                 char *str = va_arg(vargs, char *);
