@@ -791,49 +791,37 @@ float getEDFLStart(void)
 
 void verifyEDFExactBound(void)
 {
-    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
-    float P = 0;
-    float D = 0;
-
-    // ABOVE IS UP FOR CHOPING
-
     float fTotalUtilization = getTotalUtilization();
     printk("Total U is: %d\r\n", (int32_t) (fTotalUtilization * 100));
     if( fTotalUtilization > 1 ) {
         return;
     }
-
+    
     float fLStar = getEDFLStart();
-    printk("l* is: %d\r\n", ((int32_t) fLStar));
-
+    printk("L* is: %d\r\n", ((int32_t) fLStar));
+    
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
     //check all absolute deadlines by iterating through all periods of each task
     ListItem_t const* endMarker = listGET_END_MARKER(readyList);
     ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
-    currentItem = listGET_HEAD_ENTRY(readyList);
     while( currentItem != endMarker )
     {
-        //get task parameters
+        //get task pointer
         TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        P = (float) tcb->xPeriod;
-        D = (float) tcb->xRelativeDeadline;
-        printk( "Started new task!\r\n");
 
         //verify that demand at time L is less than L, where L is equal to
         //the task's absolute deadlines up to lStar
-        for( TickType_t L = D; L <= fLStar; L += P )
+        for( TickType_t L = tcb->xRelativeDeadline; L <= fLStar; L += tcb->xPeriod )
         {
             float totalDemand = 0;
-            //find total demand at time L
+            //find total demand at time L by summing the demand of each task
             ListItem_t* currentItem2 = listGET_HEAD_ENTRY(readyList);
             ListItem_t const* endMarker2 = listGET_END_MARKER(readyList);
             while( currentItem2 != endMarker2 )
             {
                 TCB_t* tcb2 = listGET_LIST_ITEM_OWNER( currentItem2 );
-                float P2 = tcb2->xPeriod;
-                float D2 = tcb2->xRelativeDeadline;
-                float C2 = tcb2->xWCET;
-                int temp = ( L + P2 - D2 ) / P2;
-                totalDemand += temp * C2;
+                int temp = ( L + tcb2->xPeriod - tcb2->xRelativeDeadline ) / tcb2->xPeriod;
+                totalDemand += temp * tcb2->xWCET;
                 currentItem2 = listGET_NEXT( currentItem2 );
             }
             if( totalDemand > L ) {
