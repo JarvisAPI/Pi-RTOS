@@ -483,9 +483,10 @@ void printSchedule( void )
     ListItem_t* currentItem = listGET_HEAD_ENTRY( readyList );
     while( currentItem != endMarker ) {
         TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        printk("Task %s, deadline %u, remaining %u\r\n", tcb->pcTaskName,
-                                                         (uint32_t) tcb->xRelativeDeadline,
-                                                         (uint32_t) currentItem->xItemValue);
+        printk("Task %s, deadline %u, remaining %u, preemption level: %u\r\n", tcb->pcTaskName,
+               (uint32_t) tcb->xRelativeDeadline,
+               (uint32_t) currentItem->xItemValue,
+               (uint32_t) tcb->xPreemptionLevel);
         currentItem = listGET_NEXT( currentItem );
     }
 }
@@ -959,7 +960,7 @@ void verifyEDFExactBound(void)
                 pxNewTCB->xRelativeDeadline = xRelativeDeadline;
                 pxNewTCB->xWCET = xWCET;
             }
-                        
+            #endif /* configUSE_SCHEDULER_EDF */           
 			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
 			prvAddNewTaskToReadyList( pxNewTCB );
 			xReturn = pdPASS;
@@ -969,7 +970,7 @@ void verifyEDFExactBound(void)
 			xReturn = errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY;
 		}
 
-        verifyLLBound();
+        //verifyLLBound();
 
 		return xReturn;
 	}
@@ -1249,26 +1250,25 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB )
 
             uint32_t vNumTasks = listCURRENT_LIST_LENGTH( vReadyList );
 
-            if ( vNumTasks == 0 ) {
-                pxNewTCB->xPreemptionLevel = 1;
-            }
-            else {
-                ListItem_t const *vEndMarker = listGET_END_MARKER( vReadyList );
-                ListItem_t *vCurrentItem = listGET_HEAD_ENTRY( vReadyList );
-                // TODO: Check that head entry going down the list results in increasing
-                // relative deadlines.
-                while( vCurrentItem != vEndMarker ) {
-                    TCB_t *vTCB = listGET_LIST_ITEM_OWNER( vCurrentItem );
-                    if (vTCB->xRelativeDeadline < pxNewTCB->xRelativeDeadline) {
-                        // New task has lower preemption level so increment and keep going down.
-                        vTCB->xPreemptionLevel++;
-                    } else {
-                        // New task preemtpion level should be greater than this task in the list.
-                        pxNewTCB->xPreemptionLevel = vTCB->xPreemptionLevel + 1;
-                        break;
-                    }
-                    vCurrentItem = listGET_NEXT( vCurrentItem );
+            ListItem_t const *vEndMarker = listGET_END_MARKER( vReadyList );
+            ListItem_t *vCurrentItem = vEndMarker->pxPrevious;
+            // TODO: Check that head entry going down the list results in increasing
+            // relative deadlines.
+            while( vCurrentItem != vEndMarker ) {
+                TCB_t *vTCB = listGET_LIST_ITEM_OWNER( vCurrentItem );
+                if (vTCB->xRelativeDeadline < pxNewTCB->xRelativeDeadline) {
+                    // New task has lower preemption level so increment and keep going down.
+                    vTCB->xPreemptionLevel++;
+                } else {
+                    // New task preemtpion level should be greater than this task in the list.
+                    pxNewTCB->xPreemptionLevel = vTCB->xPreemptionLevel + 1;
+                    break;
                 }
+                vCurrentItem = vCurrentItem->pxPrevious;
+            }
+            
+            if ( vCurrentItem == vEndMarker ) {
+                pxNewTCB->xPreemptionLevel = 1;
             }
         }
         #endif
@@ -5145,7 +5145,6 @@ static Stack_t mSysCeilStack;
 static Stack_t mRuntimeStack;
 
 BaseType_t srpInitSRPStacks(void) {
-    printk("Called srpInitSRPStacks()\r\n");
     mSysCeilStack.xMaxSize = MAX_SYS_CEIL_LEVELS * sizeof( StackType_t );
     
     mSysCeilStack.xStack = pvPortMalloc( mSysCeilStack.xMaxSize );
@@ -5165,9 +5164,7 @@ BaseType_t srpInitSRPStacks(void) {
     mRuntimeStack.xSize = 0;
     
     /* Push NULL to indicate lowest system ceiling. */
-    printk("Before init Stack size: %u\r\n", mSysCeilStack.xSize);    
     srpSysCeilStackPush( (StackType_t) NULL );
-    printk("After init Stack size: %u\r\n", mSysCeilStack.xSize);
 
     return pdTRUE;
 }
@@ -5177,7 +5174,6 @@ ResourceHandle_t srpSemaphoreCreateBinary(void) {
 
     if ( vResource != NULL ) {
         vResource->xSemaphore = xSemaphoreCreateBinary();
-        printk("OnCreate Semaphore: 0x%x\r\n", vResource->xSemaphore);
         
         if ( vResource->xSemaphore == NULL ) {
             vPortFree( vResource );
@@ -5201,24 +5197,16 @@ BaseType_t srpSemaphoreTake(ResourceHandle_t vResourceHandle, TickType_t xBlockT
     
     portENTER_CRITICAL();
 
-    printk("Stack size: %u\r\n", mSysCeilStack.xSize);
     vTopPtr = (StackType_t *) srpSysCeilStackPeak();
 
-    printk("vTopPtr: 0x%x\r\n", vTopPtr);
-    if (vTopPtr != NULL) {
-        printk("*vTopPtr: %u\r\n", *vTopPtr);
-    }
     configASSERT( vTopPtr == NULL || pxCurrentTCB->xPreemptionLevel > *vTopPtr );
     
     srpSysCeilStackPush( (StackType_t) &pxCurrentTCB->xPreemptionLevel );
-    printk("After push Stack size: %u\r\n", mSysCeilStack.xSize);
+    
     portEXIT_CRITICAL();
     
-    printk("Semaphore: 0x%x\r\n", vResource->xSemaphore);
     vVal = xSemaphoreTake( vResource->xSemaphore, xBlockTime );
-    printk("here, vVal: %u\r\n", (uint32_t) vVal);
 
-    printk("After take Stack size: %u\r\n", mSysCeilStack.xSize);    
     if ( vVal == pdFALSE ) {
         portENTER_CRITICAL();        
         
@@ -5245,9 +5233,7 @@ BaseType_t srpSemaphoreGive(ResourceHandle_t vResourceHandle) {
 
     portENTER_CRITICAL();
 
-    printk("Popping stack\r\n");
     srpSysCeilStackPop();
-    printk("After poppint stack\r\n");
 
     portEXIT_CRITICAL();
 
@@ -5265,8 +5251,6 @@ static StackType_t srpSysCeilStackPeak(void) {
 }
 
 static void srpSysCeilStackPop(void) {
-    printk("SysCeil Stack: 0x%x\r\n", mSysCeilStack.xStack);
-    printk("SysCeil StackSize: %u\r\n", mSysCeilStack.xSize);
     configASSERT( mSysCeilStack.xStack != NULL );
     configASSERT( mSysCeilStack.xSize > 1 );
     
