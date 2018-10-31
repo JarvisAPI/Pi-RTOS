@@ -729,46 +729,22 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 #endif /* portUSING_MPU_WRAPPERS */
 /*-----------------------------------------------------------*/
 
-#define BOUND_LL( n ) ( 2 * ( powf( 2, 1 / (float) n ) - 1 ) )
-
-void verifyLLBound(void)
-{
-    // TODO Allow online by also checking waiting tasks/blocked tasks
-    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
-    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
-    float dLLBound = BOUND_LL( (float) ulNumTasks );
-    double dCurrentUtilization = 0;
-
-    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
-    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
-    while( currentItem != endMarker )
-    {
-        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        dCurrentUtilization += (double) tcb->xWCET / tcb->xRelativeDeadline;
-        currentItem = listGET_NEXT( currentItem );
-    }
-
-    printk("LL: %d!\r\n", (int)(dLLBound * 100));
-    printk("CR: %d!\r\n", (int)(dCurrentUtilization * 100));
-    if ( dCurrentUtilization > dLLBound )
-        printk("Failed to meet LL bound requirements!\r\n");
-}
 
 float getTotalUtilization(void)
 {
-    float dCurrentUtilization = 0;
+    float fCurrentUtilization = 0;
 
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
     ListItem_t const* endMarker = listGET_END_MARKER(readyList);
     ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
-    while( currentItem != endMarker )
+    while(currentItem != endMarker)
     {
-        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        dCurrentUtilization += (float) tcb->xWCET / tcb->xPeriod;
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER(currentItem);
+        fCurrentUtilization += (float) tcb->xWCET / tcb->xPeriod;
         currentItem = listGET_NEXT( currentItem );
     }
 
-    return dCurrentUtilization;
+    return fCurrentUtilization;
 }
 
 float getEDFLStart(void)
@@ -779,15 +755,29 @@ float getEDFLStart(void)
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
     ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
     ListItem_t const* endMarker = listGET_END_MARKER(readyList);
-    while( currentItem != endMarker )
+    while(currentItem != endMarker)
     {
-        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER(currentItem);
         fLStar += (tcb->xPeriod - tcb->xRelativeDeadline) * (((float) tcb->xWCET) / tcb->xPeriod);;
-        currentItem = listGET_NEXT( currentItem );
+        currentItem = listGET_NEXT(currentItem);
     }
 
     return fLStar / ( 1- fTotalUtilization );
 }
+
+void verifyLLBound(void)
+{
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
+    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH(readyList);
+    float fLLBound = (2 * (powf(2, 1 / (float) ulNumTasks) - 1));
+    float fTotalUtilization = getTotalUtilization();
+
+    if (fTotalUtilization > fLLBound)
+        printk("Failed to meet LL bound requirements!\r\n");
+    else
+        printk("LL bound requirements met!\r\n");
+}
+
 
 void verifyEDFExactBound(void)
 {
@@ -846,8 +836,6 @@ void verifyEDFExactBound(void)
 
         currentItem = listGET_NEXT( currentItem );
     }
-    printk("DONE!\r\n");
-    while(1);
     return;
 
 }

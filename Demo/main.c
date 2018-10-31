@@ -19,6 +19,7 @@ typedef struct TaskInfo_s
     TickType_t xWCET;
     TickType_t xPeriod;
     TickType_t xRelativeDeadline;
+    const char* name;
 } TaskInfo_t;
 
 
@@ -26,9 +27,9 @@ typedef struct TaskInfo_s
 const int iNumTasks = 3;
 TaskInfo_t tasks[] =
 {
-    {1, 1000, 3000, 2000},
-    {2, 2000, 7000, 5500},
-    {3, 2000, 10000, 6000}
+    {1, 500, 3000, 2000, "Task 1"},
+    {2, 1500, 7000, 5500, "Task 2"},
+    {3, 1500, 10000, 6000, "Task 3"}
 };
 
 
@@ -60,17 +61,15 @@ int main(void) {
     // Create tasksk
     for (int iTaskNum = 0; iTaskNum < iNumTasks; iTaskNum++)
     {
-        xTaskCreate(TimingTestTask, "Timing Task", 256, (void *) &tasks[iTaskNum], PRIORITY_EDF,
-                    tasks[iTaskNum].xWCET, tasks[iTaskNum].xRelativeDeadline,
+        xTaskCreate(TimingTestTask, tasks[iTaskNum].name, 256, (void *) &tasks[iTaskNum],
+                    PRIORITY_EDF, tasks[iTaskNum].xWCET, tasks[iTaskNum].xRelativeDeadline,
                     tasks[iTaskNum].xPeriod, NULL);
     }
 
-    //xTaskCreate(TimingTestTask2, "LED_1", 256, NULL, 1, 1000, 2500, xTimingDelay2, NULL);
-    //xTaskCreate(TimingTestTask3, "LED_2", 256, NULL, 1, 1500, 3500, xTimingDelay3, NULL);
-
     printSchedule();
     verifyEDFExactBound();
-    //xStartTime = xTaskGetTickCount();
+    verifyLLBound();
+    xStartTime = xTaskGetTickCount();
     vTaskStartScheduler();
 
     /*
