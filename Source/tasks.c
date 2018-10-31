@@ -84,6 +84,7 @@ task.h is included from an application file. */
 #include "StackMacros.h"
 #include "printk.h"
 
+extern void reset(void);
 /* Lint e961 and e750 are suppressed as a MISRA exception justified because the
 MPU ports require MPU_WRAPPERS_INCLUDED_FROM_API_FILE to be defined for the
 header files above, but not in this file, in order to generate the correct
@@ -384,6 +385,7 @@ typedef struct tskTaskControlBlock
                 TickType_t xRelativeDeadline;
                 TickType_t xCurrentRunTime;
                 TickType_t xWCET;
+                TickType_t xPeriod;
         #endif
 
 } tskTCB;
@@ -761,6 +763,7 @@ void verifyLLBound(void)
 							UBaseType_t uxPriority,
                                                         TickType_t xWCET,
                                                         TickType_t xRelativeDeadline,
+                                                        TickType_t xPeriod,
 							TaskHandle_t * const pxCreatedTask ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
     #else
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -843,6 +846,7 @@ void verifyLLBound(void)
                         #if( configUSE_SCHEDULER_EDF == 1 )
                         {
                             pxNewTCB->xStateListItem.xItemValue = xRelativeDeadline;
+                            pxNewTCB->xPeriod = xPeriod;
                             pxNewTCB->xRelativeDeadline = xRelativeDeadline;
                             pxNewTCB->xWCET = xWCET;
                         }
@@ -1973,6 +1977,7 @@ BaseType_t xReturn;
 								( tskIDLE_PRIORITY | portPRIVILEGE_BIT ),
                                                                 0xFFFFFFFF,
                                                                 0xFFFFFFFF,
+                                                                0xFFFFFFFF,
 								&xIdleTaskHandle ); /*lint !e961 MISRA exception, justified as it is not a redundant explicit cast to all supported compilers. */
 	}
 	#endif /* configSUPPORT_STATIC_ALLOCATION */
@@ -2610,6 +2615,7 @@ implementations require configUSE_TICKLESS_IDLE to be set to a value other than
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
+
 BaseType_t xTaskIncrementTick( void )
 {
 TCB_t * pxTCB;
@@ -2637,7 +2643,7 @@ TickType_t xSmallestTick = 0xFFFFFFFF;
             }
             else
             {
-                printk("MISSED DEADLINE!\r\n");
+                printk("Missed Deadline, will reset processor!\r\n");
                 while(1);
             }
             currentItem = listGET_NEXT( currentItem );
