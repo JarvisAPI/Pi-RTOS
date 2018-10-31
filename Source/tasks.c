@@ -720,25 +720,27 @@ void verifyLLBound(void)
 {
     // TODO Allow online by also checking waiting tasks/blocked tasks
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
-    //uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
-    //float dLLBound = BOUND_LL( (float) listCURRENT_LIST_LENGTH( readyList ) );
-    double dCurrentUtilization = 0;
+    float dCurrentUtilization = 0;
+
+
+    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
+    //float dLLBound = BOUND_LL( (float) ulNumTasks );
 
     ListItem_t const* endMarker = listGET_END_MARKER(readyList);
     ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
     while( currentItem != endMarker )
     {
         TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        dCurrentUtilization += (double) tcb->xWCET / tcb->xRelativeDeadline;
+        dCurrentUtilization += (float) tcb->xWCET / tcb->xRelativeDeadline;
+        currentItem = listGET_NEXT( currentItem );
     }
 
-    //printk("LL: %d!\r\n", (int)dLLBound);
-    printk("CR: %d!\r\n", (int)dCurrentUtilization);
-    /*if ( dCurrentUtilization > dLLBound )
+    printk("CR: %d!\r\n", x);
+    if ( dCurrentUtilization > 1.0f )
     {
-        printk("ELEN IS GAY!\r\n");
+        printk("LL BOUND EXCEEDED!!!?!!??!?!?!?!\r\n");
         while(1);
-    }*/
+    }
 
 }
 
