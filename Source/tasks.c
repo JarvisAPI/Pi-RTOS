@@ -753,12 +753,8 @@ void verifyLLBound(void)
 							const uint16_t usStackDepth,
 							void * const pvParameters,
 							UBaseType_t uxPriority,
-<<<<<<< HEAD
+                            TickType_t xWCET,
                             TickType_t xRelativeDeadline,
-=======
-                                                        TickType_t xWCET,
-                                                        TickType_t xRelativeDeadline,
->>>>>>> 33b7dc75b314638b3f36eb70ca043b0131b63979
 							TaskHandle_t * const pxCreatedTask ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
     #else
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -827,7 +823,7 @@ void verifyLLBound(void)
 			}
 		}
 		#endif /* portSTACK_GROWTH */
-
+        
 		if( pxNewTCB != NULL )
 		{
 			#if( tskSTATIC_AND_DYNAMIC_ALLOCATION_POSSIBLE != 0 )
@@ -838,14 +834,15 @@ void verifyLLBound(void)
 			}
 			#endif /* configSUPPORT_STATIC_ALLOCATION */
 
-                        #if( configUSE_SCHEDULER_EDF == 1 )
-                        {
-                            pxNewTCB->xStateListItem.xItemValue = xRelativeDeadline;
-                            pxNewTCB->xRelativeDeadline = xRelativeDeadline;
-                            pxNewTCB->xWCET = xWCET;
-                        }
+            #if( configUSE_SCHEDULER_EDF == 1 )
+            {
+                pxNewTCB->xStateListItem.xItemValue = xRelativeDeadline;
+                pxNewTCB->xRelativeDeadline = xRelativeDeadline;
+                pxNewTCB->xWCET = xWCET;
+            }
+            #endif /* configUSE_SCHEDULER_EDF */
+           
 			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
-                        #endif /* configUSE_SCHEDULER_EDF */
 			prvAddNewTaskToReadyList( pxNewTCB );
 			xReturn = pdPASS;
 		}
@@ -1125,6 +1122,38 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB )
 		#endif /* configUSE_TRACE_FACILITY */
 		traceTASK_CREATE( pxNewTCB );
 
+        #if ( configUSE_SRP == 1 )
+        {
+            // TODO: By scanning through only ready tasks we are not allowing for
+            // online scheduling.
+            List_t *vReadyList = &pxReadyTasksLists[PRIORITY_EDF];
+
+            uint32_t vNumTasks = listCURRENT_LIST_LENGTH( vReadyList );
+
+            if ( vNumTasks == 0 ) {
+                pxNewTCB->xPreemptionLevel = 1;
+            }
+            else {
+                ListItem_t const *vEndMarker = listGET_END_MARKER( vReadyList );
+                ListItem_t *vCurrentItem = listGET_HEAD_ENTRY( vReadyList );
+                // TODO: Check that head entry going down the list results in increasing
+                // relative deadlines.
+                while( vCurrentItem != vEndMarker ) {
+                    TCB_t *vTCB = listGET_LIST_ITEM_OWNER( vCurrentItem );
+                    if (vTCB->xRelativeDeadline < pxNewTCB->xRelativeDeadline) {
+                        // New task has lower preemption level so increment and keep going down.
+                        vTCB->xPreemptionLevel++;
+                    } else {
+                        // New task preemtpion level should be greater than this task in the list.
+                        pxNewTCB->xPreemptionLevel = vTCB->xPreemptionLevel + 1;
+                        break;
+                    }
+                    vCurrentItem = listGET_NEXT( vCurrentItem );
+                }
+            }
+        }
+        #endif
+
 		prvAddTaskToReadyList( pxNewTCB );
 
 		portSETUP_TCB( pxNewTCB );
@@ -1137,6 +1166,7 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB )
 		then it should run now. */
 		if( pxCurrentTCB->uxPriority < pxNewTCB->uxPriority )
 		{
+            // TODO: If we are using SRP then we might need to change this
 			taskYIELD_IF_USING_PREEMPTION();
 		}
 		else
@@ -2746,7 +2776,6 @@ uint32_t *vSysCeilPtr;
 						if( pxTCB->uxPriority >= pxCurrentTCB->uxPriority )
                                                 #endif
 						{
-<<<<<<< HEAD
                             #if( configUSE_SRP == 1 )
                             {
                                 vSysCeilPtr = (uint32_t *) srpSysCeilStackPeak();
@@ -2758,15 +2787,6 @@ uint32_t *vSysCeilPtr;
                             #else
                                 xSwitchRequired = pdTRUE;
                             #endif /* configUSE_SRP */
-=======
-							xSwitchRequired = pdTRUE;
-                                                        /*printk("TIME: %u\r\n", xConstTickCount );
-                                                        printk("ABOUT TO PREM: %s, %u, %u\r\n",
-                                                               pxCurrentTCB->pcTaskName,
-                                                               listGET_LIST_ITEM_VALUE(&(pxCurrentTCB->xStateListItem)),
-                                                               pxTCB->xRelativeDeadline);
-                                                               */
->>>>>>> 33b7dc75b314638b3f36eb70ca043b0131b63979
 						}
 						else
 						{

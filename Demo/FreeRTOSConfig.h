@@ -104,8 +104,8 @@ extern void vSetupTimerInterrupt( void );
 extern void vClearTimerInterrupt( void );
 #define configCLEAR_TICK_INTERRUPT vClearTimerInterrupt
 
-extern void vASSERT( uint32_t x );
-#define configASSERT vASSERT
+extern void vASSERT(void);
+#define configASSERT( x ) if( ( x ) == 0 ) vASSERT();
 
 extern volatile uint32_t portEOIStub;
 #define configEOI_ADDRESS 0x8014UL

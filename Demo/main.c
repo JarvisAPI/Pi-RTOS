@@ -6,53 +6,9 @@
 #include "Drivers/rpi_irq.h"
 #include "Drivers/rpi_aux.h"
 
-// Number of increments it takes to wait for 1ms, with tick interrupts happening in between
-// This value was obtained by using binary search on a single task with 10ms deadline
-#define MAGIC_COUNT 745
-
-const TickType_t xDelay = 10 / portTICK_PERIOD_MS;
-
-const char *str0 = "Ok I am Task1";
-const char *str1 = "Hey Task2 here";
-
 const TickType_t xTimingDelay1 = 2000 / portTICK_PERIOD_MS;
 const TickType_t xTimingDelay2 = 3000 / portTICK_PERIOD_MS;
 const TickType_t xTimingDelay3 = 4000 / portTICK_PERIOD_MS;
-
-
-void delay(uint32_t ms) {
-    uint32_t i;
-    uint32_t max_counter = MAGIC_COUNT * ms;
-    for (i=0; i<max_counter; i++);
-}
-
-void task1(void *pParam) {
-	int i;
-    TickType_t start_tick, end_tick;
-
-    i = 0;
-	while(1) {
-        start_tick = xTaskGetTickCount();
-		i++;
-        rpi_aux_mu_string((char *)str0);
-        printk("TimingTask1\r\n");
-		rpi_gpio_set_val(47, 1);
-		rpi_gpio_set_val(35, 0);
-        end_tick = xTaskGetTickCount();
-		vTaskDelay(xDelay);
-	}
-}
-
-void task2(void *pParam) {
-	int i = 0;
-	while(1) {
-		i++;
-        rpi_aux_mu_string((char *)str1);
-		rpi_gpio_set_val(47, 0);
-		rpi_gpio_set_val(35, 1);
-		vTaskDelay(xDelay/2);
-	}
-}
 
 volatile static TickType_t xStartTime = 0;
 void TimingTestTask1(void *pParam) {
