@@ -939,8 +939,6 @@ void verifyEDFExactBound(void)
 			xReturn = errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY;
 		}
 
-        verifyLLBound();
-
 		return xReturn;
 	}
 

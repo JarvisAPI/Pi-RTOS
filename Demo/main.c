@@ -10,47 +10,36 @@
 // This value was obtained by using binary search on a single task with 10ms deadline
 #define MAGIC_COUNT 745
 
-const TickType_t xDelay = 10 / portTICK_PERIOD_MS;
-
-const char *str0 = "Ok I am Task1";
-const char *str1 = "Hey Task2 here";
-
-const TickType_t xTimingDelay1 = 2000 / portTICK_PERIOD_MS;
-const TickType_t xTimingDelay2 = 3000 / portTICK_PERIOD_MS;
-const TickType_t xTimingDelay3 = 4000 / portTICK_PERIOD_MS;
+static TickType_t xStartTime = 0;
 
 
-volatile static TickType_t xStartTime = 0;
-void TimingTestTask1(void *pParam) {
-    TickType_t xLastWakeTime;
-    xLastWakeTime = xTaskGetTickCount();
+typedef struct TaskInfo_s
+{
+    int iTaskNumber;
+    TickType_t xWCET;
+    TickType_t xPeriod;
+    TickType_t xRelativeDeadline;
+} TaskInfo_t;
+
+
+// Define tasks
+const int iNumTasks = 3;
+TaskInfo_t tasks[] =
+{
+    {1, 800, 3000, 2000},
+    {2, 1800, 7000, 5500},
+    {3, 1800, 10000, 6000}
+};
+
+
+void TimingTestTask(void *pParam) {
+    TickType_t xLastWakeTime = xStartTime;
+    TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
     while(1) {
-        printk("Start TimingTask1\r\n");
-        busyWait( 200 );
-        printk("End TimingTask1\r\n");
-        vTaskDelayUntil( &xLastWakeTime, xTimingDelay1 );
-    }
-}
-
-void TimingTestTask2(void *pParam) {
-    TickType_t xLastWakeTime;
-    xLastWakeTime = xStartTime;
-    while(1) {
-        printk("Start TimingTask2\r\n");
-        busyWait( 1000 );
-        printk("End TimingTask2\r\n");
-        vTaskDelayUntil( &xLastWakeTime, xTimingDelay2 );
-    }
-}
-
-void TimingTestTask3(void *pParam) {
-    TickType_t xLastWakeTime;
-    xLastWakeTime = xStartTime;
-    while(1) {
-        printk("Start TimingTask3: %u\r\n", getTime());
-        busyWait( 1500 );
-        printk("End TimingTask3: %u\r\n", getTime());
-        vTaskDelayUntil( &xLastWakeTime, xTimingDelay3 );
+        printk("Start Timing task %d\r\n", xTaskInfo->iTaskNumber);
+        busyWait(xTaskInfo->xWCET);
+        printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
+        vTaskDelayUntil( &xLastWakeTime, xTaskInfo->xPeriod );
     }
 }
 
@@ -67,15 +56,20 @@ int main(void) {
     rpi_gpio_sel_fun(47, 1);			// RDY led
     rpi_gpio_sel_fun(35, 1);			// RDY led
 
-    //xTaskCreate(task1, "LED_0", 128, (void *) 8, 0, 0,NULL);
-    //xTaskCreate(task2, "LED_1", 128, (void *) 4, 0, 0,NULL);
 
-    xTaskCreate(TimingTestTask1, "LED_0", 256, NULL, 1, 200, 1500, xTimingDelay1, NULL);
-    xTaskCreate(TimingTestTask2, "LED_1", 256, NULL, 1, 1000, 2500, xTimingDelay2, NULL);
-    xTaskCreate(TimingTestTask3, "LED_2", 256, NULL, 1, 1500, 3500, xTimingDelay3, NULL);
+    // Create tasksk
+    for (int iTaskNum = 0; iTaskNum < iNumTasks; iTaskNum++)
+    {
+        xTaskCreate(TimingTestTask, "Timing Task", 256, (void *) &tasks[iTaskNum], PRIORITY_EDF,
+                    tasks[iTaskNum].xWCET, tasks[iTaskNum].xRelativeDeadline,
+                    tasks[iTaskNum].xPeriod, NULL);
+    }
+
+    //xTaskCreate(TimingTestTask2, "LED_1", 256, NULL, 1, 1000, 2500, xTimingDelay2, NULL);
+    //xTaskCreate(TimingTestTask3, "LED_2", 256, NULL, 1, 1500, 3500, xTimingDelay3, NULL);
 
     printSchedule();
-    verifyEDFExactBound();
+    //verifyEDFExactBound();
     xStartTime = xTaskGetTickCount();
     vTaskStartScheduler();
 
