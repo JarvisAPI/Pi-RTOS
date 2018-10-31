@@ -1,15 +1,29 @@
 TOOLCHAIN ?= arm-none-eabi-
+CC = $(TOOLCHAIN)gcc
+LD = $(TOOLCAHIN)ld
+AR = $(TOOLCHAIN)ar
+OBJCOPY = $(TOOLCHAIN)objcopy
+OBJDUMP = $(TOOLCHAIN)objdump
+GDB = $(TOOLCHAIN)gdb
+
+LIBGCC = $(shell $(CC) -print-libgcc-file-name)
+
 
 SOURCES = Demo/main.c \
           Demo/startup.c \
           Demo/Drivers/rpi_gpio.c \
           Demo/Drivers/rpi_irq.c \
+          Demo/Drivers/rpi_aux.c \
           Source/tasks.c \
           Source/list.c \
+          Source/powf.c \
+          Source/sqrt.c \
+          Source/sqrtf.c \
           Source/portable/GCC/RaspberryPi/port.c \
           Source/portable/GCC/RaspberryPi/portISR.c \
           Source/portable/GCC/RaspberryPi/portASM.c \
-          Source/portable/MemMang/heap_4.c
+          Source/portable/MemMang/heap_4.c \
+          Source/printk.c \
 
 OBJECTS = $(patsubst %.c,build/%.o,$(SOURCES))
 
@@ -29,7 +43,7 @@ LDFLAGS =
 all: $(MOD_NAME)
 
 $(MOD_NAME): $(OBJECTS)
-	ld -shared $(LDFLAGS) $< -o $@
+	ld -shared $(LDFLAGS) $< -o $@ $(LIBGCC)
 
 build/%.o: %.c
 	mkdir -p $(dir $@)
@@ -55,7 +69,7 @@ kernel7.hex : kernel7.elf
 	$(TOOLCHAIN)objcopy kernel7.elf -O ihex $@
 
 kernel7.elf: $(OBJECTS)
-	$(TOOLCHAIN)ld $^ -static -Map kernel7.map -o $@ -T Demo/raspberrypi.ld
+	$(TOOLCHAIN)ld $^ -static -Map kernel7.map -o $@ -T Demo/raspberrypi.ld $(LIBGCC)
 
 clean:
 	rm -f $(OBJECTS)

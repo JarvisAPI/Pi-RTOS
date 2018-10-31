@@ -1,32 +1,48 @@
 #include <FreeRTOS.h>
 #include <task.h>
+#include <printk.h>
 
 #include "Drivers/rpi_gpio.h"
 #include "Drivers/rpi_irq.h"
+#include "Drivers/rpi_aux.h"
 
-const TickType_t xDelay = 500 * portTICK_PERIOD_MS;
+// Number of increments it takes to wait for 1ms, with tick interrupts happening in between
+// This value was obtained by using binary search on a single task with 10ms deadline
+#define MAGIC_COUNT 745
 
-void task1(void *pParam) {
-	int i = 0;
-	while(1) {
-		i++;
-		rpi_gpio_set_val(47, 1);
-		rpi_gpio_set_val(35, 0);
-		vTaskDelay(xDelay);
-	}
+static TickType_t xStartTime = 0;
+
+
+typedef struct TaskInfo_s
+{
+    int iTaskNumber;
+    TickType_t xWCET;
+    TickType_t xPeriod;
+    TickType_t xRelativeDeadline;
+    const char* name;
+} TaskInfo_t;
+
+
+// Define tasks
+const int iNumTasks = 3;
+TaskInfo_t tasks[] =
+{
+    {1, 900, 3000, 2000, "Task 1"},
+    {2, 1900, 7000, 5500, "Task 2"},
+    {3, 1900, 10000, 6000, "Task 3"}
+};
+
+
+void TimingTestTask(void *pParam) {
+    TickType_t xLastWakeTime = xStartTime;
+    TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
+    while(1) {
+        printk("Start Timing task %d\r\n", xTaskInfo->iTaskNumber);
+        busyWait(xTaskInfo->xWCET);
+        printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
+        vTaskDelayUntil( &xLastWakeTime, xTaskInfo->xPeriod );
+    }
 }
-
-void task2(void *pParam) {
-	int i = 0;
-	while(1) {
-		i++;
-		vTaskDelay(xDelay/2);
-		rpi_gpio_set_val(47, 0);
-		rpi_gpio_set_val(35, 1);
-		vTaskDelay(xDelay/2);
-	}
-}
-
 
 /**
  *	This is the systems main entry, some call it a boot thread.
@@ -35,22 +51,33 @@ void task2(void *pParam) {
  *	-- the same prototype as you'd see in a linux program.
  **/
 int main(void) {
-	rpi_cpu_irq_disable();
+    rpi_cpu_irq_disable();
+    rpi_aux_mu_init();
 
-	rpi_gpio_sel_fun(47, 1);			// RDY led
-	rpi_gpio_sel_fun(35, 1);			// RDY led
+    rpi_gpio_sel_fun(47, 1);			// RDY led
+    rpi_gpio_sel_fun(35, 1);			// RDY led
 
-	xTaskCreate(task1, "LED_0", 128, NULL, 0, NULL);
-	xTaskCreate(task2, "LED_1", 128, NULL, 0, NULL);
 
-	vTaskStartScheduler();
+    // Create tasksk
+    for (int iTaskNum = 0; iTaskNum < iNumTasks; iTaskNum++)
+    {
+        xTaskCreate(TimingTestTask, tasks[iTaskNum].name, 256, (void *) &tasks[iTaskNum],
+                    PRIORITY_EDF, tasks[iTaskNum].xWCET, tasks[iTaskNum].xRelativeDeadline,
+                    tasks[iTaskNum].xPeriod, NULL);
+    }
 
-	/*
-	 *	We should never get here, but just in case something goes wrong,
-	 *	we'll place the CPU into a safe loop.
-	 */
-	while(1) {
-		;
-	}
+    printSchedule();
+    verifyEDFExactBound();
+    verifyLLBound();
+    xStartTime = xTaskGetTickCount();
+    vTaskStartScheduler();
+
+    /*
+     *	We should never get here, but just in case something goes wrong,
+     *	we'll place the CPU into a safe loop.
+     */
+    while(1) {
+        ;
+    }
 }
 

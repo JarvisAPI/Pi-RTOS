@@ -76,6 +76,7 @@
 #endif
 
 #include "list.h"
+#include "FreeRTOS.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -101,6 +102,12 @@ extern "C" {
  * \ingroup Tasks
  */
 typedef void * TaskHandle_t;
+
+
+void busyWait( TickType_t ticks );
+void printSchedule(void);
+TickType_t getTime(void);
+void verifyLLBound(void);
 
 /*
  * Defines the prototype to which the application task hook function must
@@ -356,13 +363,27 @@ is used in assert() statements. */
  * \defgroup xTaskCreate xTaskCreate
  * \ingroup Tasks
  */
+
+#define PRIORITY_EDF 1
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
+    #if( configUSE_SCHEDULER_EDF == 1 )
+	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
+							const char * const pcName,
+							const uint16_t usStackDepth,
+							void * const pvParameters,
+							UBaseType_t uxPriority,
+                                                        TickType_t xWCET,
+                                                        TickType_t xRelativeDeadline,
+                                                        TickType_t xPeriod,
+							TaskHandle_t * const pxCreatedTask ) PRIVILEGED_FUNCTION;/*lint !e971 Unqualified char types are allowed for strings and single characters only. */
+    #else
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
 							const char * const pcName,
 							const uint16_t usStackDepth,
 							void * const pvParameters,
 							UBaseType_t uxPriority,
 							TaskHandle_t * const pxCreatedTask ) PRIVILEGED_FUNCTION; /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
+    #endif
 #endif
 
 /**
@@ -2257,6 +2278,8 @@ eSleepModeStatus eTaskConfirmSleepModeStatus( void ) PRIVILEGED_FUNCTION;
  * taken and return the handle of the task that has taken the mutex.
  */
 void *pvTaskIncrementMutexHeldCount( void ) PRIVILEGED_FUNCTION;
+
+void verifyEDFExactBound(void);
 
 #ifdef __cplusplus
 }
