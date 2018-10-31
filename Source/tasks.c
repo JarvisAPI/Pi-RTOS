@@ -174,8 +174,7 @@ a statically allocated stack and a dynamically allocated TCB. */
 
 	/*-----------------------------------------------------------*/
 #if( configUSE_SCHEDULER_EDF == 1 )
-    #define taskSELECT_HIGHEST_PRIORITY_TASK()
-		 \
+    #define taskSELECT_HIGHEST_PRIORITY_TASK()                      \
 	{																									\
 	UBaseType_t uxTopPriority = uxTopReadyPriority;														\
 																										\
@@ -186,7 +185,7 @@ a statically allocated stack and a dynamically allocated TCB. */
 			--uxTopPriority;																			\
 		}																								\
         ListItem_t const *endMarker = listGET_END_MARKER( &( pxReadyTasksLists[ uxTopPriority ] ) );    \
-        pxCurrentTCB = listGET_LIST_ITEM_OWNER( endMarker );                                            \
+        pxCurrentTCB = listGET_LIST_ITEM_OWNER( endMarker->pxNext );                                            \
 		uxTopReadyPriority = uxTopPriority;																\
     } /* taskSELECT_HIGHEST_PRIORITY_TASK */
 #else
@@ -786,10 +785,10 @@ void verifyEDFExactBound(void)
     if( fTotalUtilization > 1 ) {
         return;
     }
-    
+
     float fLStar = getEDFLStart();
     printk("L* is: %d\r\n", ((int32_t) fLStar));
-    
+
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
     //check all absolute deadlines by iterating through all periods of each task
     ListItem_t const* endMarker = listGET_END_MARKER(readyList);
@@ -824,6 +823,7 @@ void verifyEDFExactBound(void)
 
         currentItem = listGET_NEXT( currentItem );
     }
+    printk("Task set has passed deadline");
     return;
 
 }
@@ -2811,6 +2811,7 @@ TickType_t xSmallestTick = 0xFFFFFFFF;
                                         #if( configUSE_SCHEDULER_EDF == 1 )
                                             pxTCB->xStateListItem.xItemValue = pxTCB->xRelativeDeadline;
                                             pxTCB->xCurrentRunTime = 0;
+                                            printk("Moving a task out of delay: %s\r\n", pxTCB->pcTaskName);
                                          #endif
 					prvAddTaskToReadyList( pxTCB );
 

@@ -93,6 +93,7 @@
 #define configIDLE_SHOULD_YIELD		1
 #define configUSE_APPLICATION_TASK_TAG	1
 #define configUSE_TIME_SLICING          0
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION 0
 
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES 		0

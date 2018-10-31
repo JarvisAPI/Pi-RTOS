@@ -27,9 +27,9 @@ typedef struct TaskInfo_s
 const int iNumTasks = 3;
 TaskInfo_t tasks[] =
 {
-    {1, 500, 3000, 2000, "Task 1"},
-    {2, 1500, 7000, 5500, "Task 2"},
-    {3, 1500, 10000, 6000, "Task 3"}
+    {1, 900, 3000, 2000, "Task 1"},
+    {2, 1900, 7000, 5500, "Task 2"},
+    {3, 1900, 10000, 6000, "Task 3"}
 };
 
 
