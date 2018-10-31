@@ -180,8 +180,7 @@ a statically allocated stack and a dynamically allocated TCB. */
 
 	/*-----------------------------------------------------------*/
 #if( configUSE_SCHEDULER_EDF == 1 )
-    #define taskSELECT_HIGHEST_PRIORITY_TASK()
-		 \
+    #define taskSELECT_HIGHEST_PRIORITY_TASK()                      \
 	{																									\
 	UBaseType_t uxTopPriority = uxTopReadyPriority;														\
 																										\
@@ -192,7 +191,7 @@ a statically allocated stack and a dynamically allocated TCB. */
 			--uxTopPriority;																			\
 		}																								\
         ListItem_t const *endMarker = listGET_END_MARKER( &( pxReadyTasksLists[ uxTopPriority ] ) );    \
-        pxCurrentTCB = listGET_LIST_ITEM_OWNER( endMarker );                                            \
+        pxCurrentTCB = listGET_LIST_ITEM_OWNER( endMarker->pxNext );                                            \
 		uxTopReadyPriority = uxTopPriority;																\
     } /* taskSELECT_HIGHEST_PRIORITY_TASK */
 #else
@@ -760,93 +759,89 @@ static void srpStackPush(Stack_t *vStackT, StackType_t vStackVar);
 #endif /* portUSING_MPU_WRAPPERS */
 /*-----------------------------------------------------------*/
 
-#define BOUND_LL( n ) ( 2 * ( powf( 2, 1 / (float) n ) - 1 ) )
+
+float getTotalUtilization(void)
+{
+    float fCurrentUtilization = 0;
+
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+    while(currentItem != endMarker)
+    {
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER(currentItem);
+        fCurrentUtilization += (float) tcb->xWCET / tcb->xPeriod;
+        currentItem = listGET_NEXT( currentItem );
+    }
+
+    return fCurrentUtilization;
+}
+
+float getEDFLStart(void)
+{
+    float fTotalUtilization = getTotalUtilization();
+    float fLStar = 0;
+
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    while(currentItem != endMarker)
+    {
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER(currentItem);
+        fLStar += (tcb->xPeriod - tcb->xRelativeDeadline) * (((float) tcb->xWCET) / tcb->xPeriod);;
+        currentItem = listGET_NEXT(currentItem);
+    }
+
+    return fLStar / ( 1- fTotalUtilization );
+}
 
 void verifyLLBound(void)
 {
-    // TODO Allow online by also checking waiting tasks/blocked tasks
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
-    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
-    float dLLBound = BOUND_LL( (float) ulNumTasks );
-    double dCurrentUtilization = 0;
+    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH(readyList);
+    float fLLBound = (2 * (powf(2, 1 / (float) ulNumTasks) - 1));
+    float fTotalUtilization = getTotalUtilization();
 
-    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
-    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
-    while( currentItem != endMarker )
-    {
-        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        dCurrentUtilization += (double) tcb->xWCET / tcb->xRelativeDeadline;
-        currentItem = listGET_NEXT( currentItem );
-    }
-
-    printk("LL: %d!\r\n", (int)(dLLBound * 100));
-    printk("CR: %d!\r\n", (int)(dCurrentUtilization * 100));
-    if ( dCurrentUtilization > dLLBound )
+    if (fTotalUtilization > fLLBound)
         printk("Failed to meet LL bound requirements!\r\n");
+    else
+        printk("LL bound requirements met!\r\n");
 }
+
 
 void verifyEDFExactBound(void)
 {
-    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
-    float sum = 0;
-    float P = 0;
-    float U = 0;
-    float D = 0;
-    float L = 0;
-    float dTotalUtilization = 0;
-    float lStar = 0;
-
-    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
-
-    // Find L*
-    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
-    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
-    while( currentItem != endMarker )
-    {
-        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        P = (float) tcb->xPeriod;
-        D = (float) tcb->xRelativeDeadline;
-        U = (float) tcb->xWCET / tcb->xPeriod;
-        dTotalUtilization += U;
-        lStar += (P - D) * U;
-        printk("Current L* is: %d\r\n", (int32_t) lStar);
-        printk("Current U is: %d\r\n", (int32_t) dTotalUtilization);
-        currentItem = listGET_NEXT( currentItem );
-    }
-    if( dTotalUtilization > 1 ) {
+    float fTotalUtilization = getTotalUtilization();
+    printk("Total U is: %d\r\n", (int32_t) (fTotalUtilization * 100));
+    if( fTotalUtilization > 1 ) {
         return;
     }
-    lStar /= ( 1 - dTotalUtilization );
-    int32_t iLStar = lStar;
-    printk("L* is: %d\r\n", iLStar);
 
+    float fLStar = getEDFLStart();
+    printk("L* is: %d\r\n", ((int32_t) fLStar));
+
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
     //check all absolute deadlines by iterating through all periods of each task
-    currentItem = listGET_HEAD_ENTRY(readyList);
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
     while( currentItem != endMarker )
     {
-        //get task parameters
+        //get task pointer
         TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        P = (float) tcb->xPeriod;
-        D = (float) tcb->xRelativeDeadline;
-        U = (float) tcb->xWCET / tcb->xPeriod;
-        printk( "Started new task!\r\n");
 
         //verify that demand at time L is less than L, where L is equal to
         //the task's absolute deadlines up to lStar
-        for( TickType_t L = D; L <= lStar; L += P )
+        for( TickType_t L = tcb->xRelativeDeadline; L <= fLStar; L += tcb->xPeriod )
         {
             float totalDemand = 0;
-            //find total demand at time L
+            //find total demand at time L by summing the demand of each task
             ListItem_t* currentItem2 = listGET_HEAD_ENTRY(readyList);
             ListItem_t const* endMarker2 = listGET_END_MARKER(readyList);
             while( currentItem2 != endMarker2 )
             {
                 TCB_t* tcb2 = listGET_LIST_ITEM_OWNER( currentItem2 );
-                float P2 = tcb2->xPeriod;
-                float D2 = tcb2->xRelativeDeadline;
-                float C2 = tcb2->xWCET;
-                int temp = ( L + P2 - D2 ) / P2;
-                totalDemand += temp * C2;
+                int temp = ( L + tcb2->xPeriod - tcb2->xRelativeDeadline ) / tcb2->xPeriod;
+                totalDemand += temp * tcb2->xWCET;
                 currentItem2 = listGET_NEXT( currentItem2 );
             }
             if( totalDemand > L ) {
@@ -859,9 +854,9 @@ void verifyEDFExactBound(void)
 
         currentItem = listGET_NEXT( currentItem );
     }
-    printk("DONE!\r\n");
-    while(1);
+    printk("Task set has passed deadline");
     return;
+
 }
 
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
@@ -969,8 +964,6 @@ void verifyEDFExactBound(void)
 		{
 			xReturn = errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY;
 		}
-
-        //verifyLLBound();
 
 		return xReturn;
 	}
@@ -2884,6 +2877,7 @@ uint32_t *vSysCeilPtr;
                                         #if( configUSE_SCHEDULER_EDF == 1 )
                                             pxTCB->xStateListItem.xItemValue = pxTCB->xRelativeDeadline;
                                             pxTCB->xCurrentRunTime = 0;
+                                            printk("Moving a task out of delay: %s\r\n", pxTCB->pcTaskName);
                                          #endif
 					prvAddTaskToReadyList( pxTCB );
 
