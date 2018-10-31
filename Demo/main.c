@@ -26,9 +26,9 @@ typedef struct TaskInfo_s
 const int iNumTasks = 3;
 TaskInfo_t tasks[] =
 {
-    {1, 800, 3000, 2000},
-    {2, 1800, 7000, 5500},
-    {3, 1800, 10000, 6000}
+    {1, 1000, 3000, 2000},
+    {2, 2000, 7000, 5500},
+    {3, 2000, 10000, 6000}
 };
 
 
@@ -69,8 +69,8 @@ int main(void) {
     //xTaskCreate(TimingTestTask3, "LED_2", 256, NULL, 1, 1500, 3500, xTimingDelay3, NULL);
 
     printSchedule();
-    //verifyEDFExactBound();
-    xStartTime = xTaskGetTickCount();
+    verifyEDFExactBound();
+    //xStartTime = xTaskGetTickCount();
     vTaskStartScheduler();
 
     /*

@@ -754,42 +754,61 @@ void verifyLLBound(void)
         printk("Failed to meet LL bound requirements!\r\n");
 }
 
-void verifyEDFExactBound(void)
+float getTotalUtilization(void)
 {
+    float dCurrentUtilization = 0;
+
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
-    float sum = 0;
-    float P = 0;
-    float U = 0;
-    float D = 0;
-    float L = 0;
-    float dTotalUtilization = 0;
-    float lStar = 0;
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+    while( currentItem != endMarker )
+    {
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        dCurrentUtilization += (float) tcb->xWCET / tcb->xPeriod;
+        currentItem = listGET_NEXT( currentItem );
+    }
 
-    uint32_t ulNumTasks = listCURRENT_LIST_LENGTH( readyList );
+    return dCurrentUtilization;
+}
 
-    // Find L*
+float getEDFLStart(void)
+{
+    float fTotalUtilization = getTotalUtilization();
+    float fLStar = 0;
+
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
     ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
     ListItem_t const* endMarker = listGET_END_MARKER(readyList);
     while( currentItem != endMarker )
     {
         TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        P = (float) tcb->xPeriod;
-        D = (float) tcb->xRelativeDeadline;
-        U = (float) tcb->xWCET / tcb->xPeriod;
-        dTotalUtilization += U;
-        lStar += (P - D) * U;
-        printk("Current L* is: %d\r\n", (int32_t) lStar);
-        printk("Current U is: %d\r\n", (int32_t) dTotalUtilization);
+        fLStar += (tcb->xPeriod - tcb->xRelativeDeadline) * (((float) tcb->xWCET) / tcb->xPeriod);;
         currentItem = listGET_NEXT( currentItem );
     }
-    if( dTotalUtilization > 1 ) {
+
+    return fLStar / ( 1- fTotalUtilization );
+}
+
+void verifyEDFExactBound(void)
+{
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
+    float P = 0;
+    float D = 0;
+
+    // ABOVE IS UP FOR CHOPING
+
+    float fTotalUtilization = getTotalUtilization();
+    printk("Total U is: %d\r\n", (int32_t) (fTotalUtilization * 100));
+    if( fTotalUtilization > 1 ) {
         return;
     }
-    lStar /= ( 1 - dTotalUtilization );
-    int32_t iLStar = lStar;
-    printk("L* is: %d\r\n", iLStar);
+
+    float fLStar = getEDFLStart();
+    printk("l* is: %d\r\n", ((int32_t) fLStar));
 
     //check all absolute deadlines by iterating through all periods of each task
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
     currentItem = listGET_HEAD_ENTRY(readyList);
     while( currentItem != endMarker )
     {
@@ -797,12 +816,11 @@ void verifyEDFExactBound(void)
         TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
         P = (float) tcb->xPeriod;
         D = (float) tcb->xRelativeDeadline;
-        U = (float) tcb->xWCET / tcb->xPeriod;
         printk( "Started new task!\r\n");
 
         //verify that demand at time L is less than L, where L is equal to
         //the task's absolute deadlines up to lStar
-        for( TickType_t L = D; L <= lStar; L += P )
+        for( TickType_t L = D; L <= fLStar; L += P )
         {
             float totalDemand = 0;
             //find total demand at time L
@@ -831,6 +849,7 @@ void verifyEDFExactBound(void)
     printk("DONE!\r\n");
     while(1);
     return;
+
 }
 
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
