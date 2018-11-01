@@ -24,23 +24,31 @@ typedef struct TaskInfo_s
 
 
 // Define tasks
-const int iNumTasks = 3;
-TaskInfo_t tasks[] =
+TaskInfo_t edfLStarDemo[] =
 {
     {1, 900, 3000, 2000, "Task 1"},
     {2, 1900, 7000, 5500, "Task 2"},
     {3, 1900, 10000, 6000, "Task 3"}
 };
 
+//Overrun Demo
+TaskInfo_t overrunDemo[] =
+{
+    {1, 1000, 2000, 2000, "Task 1"},
+    {2, 1000, 4000, 4000, "Task 2"},
+};
+
+const int iNumTasks = 2;
+TaskInfo_t* tasks = overrunDemo;
 
 void TimingTestTask(void *pParam) {
-    TickType_t xLastWakeTime = xStartTime;
     TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
     while(1) {
+        printk("Started Task iter at: %u\r\n", xTaskGetTickCount());
         printk("Start Timing task %d\r\n", xTaskInfo->iTaskNumber);
         busyWait(xTaskInfo->xWCET);
         printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
-        vTaskDelayUntil( &xLastWakeTime, xTaskInfo->xPeriod );
+        endTaskPeriod();
     }
 }
 

@@ -385,6 +385,7 @@ typedef struct tskTaskControlBlock
                 TickType_t xCurrentRunTime;
                 TickType_t xWCET;
                 TickType_t xPeriod;
+                TickType_t xLastWakeTime;
         #endif
 
 } tskTCB;
@@ -844,6 +845,11 @@ void verifyEDFExactBound(void)
 
 }
 
+void endTaskPeriod(void)
+{
+    vTaskDelayUntil( &(pxCurrentTCB->xLastWakeTime), pxCurrentTCB->xPeriod );
+}
+
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
     #if( configUSE_SCHEDULER_EDF == 1 )
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
@@ -939,6 +945,7 @@ void verifyEDFExactBound(void)
                             pxNewTCB->xPeriod = xPeriod;
                             pxNewTCB->xRelativeDeadline = xRelativeDeadline;
                             pxNewTCB->xWCET = xWCET;
+                            pxNewTCB->xLastWakeTime = xTaskGetTickCount();
                         }
 			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
                         #endif /* configUSE_SCHEDULER_EDF */
