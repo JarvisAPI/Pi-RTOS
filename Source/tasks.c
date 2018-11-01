@@ -451,9 +451,14 @@ PRIVILEGED_DATA static volatile UBaseType_t uxSchedulerSuspended	= ( UBaseType_t
 /*lint +e956 */
 
 
-void busyWait( TickType_t ticks )
+/**
+ * @brief Simulate task execution by waiting for a certain number of ticks to elapse while this task
+ *        being.executed.
+ * @param ticks The number of ticks to keep the processor busy for.
+ **/
+void busyWait(TickType_t ticks)
 {
-    while( pxCurrentTCB->xCurrentRunTime < ticks );
+    while(pxCurrentTCB->xCurrentRunTime < ticks);
     return;
 }
 
@@ -764,8 +769,13 @@ float getEDFLStart(void)
     return fLStar / ( 1- fTotalUtilization );
 }
 
+/**
+ * @brief Generate the LL bound for the scheduled task set, compare the utilization and report the
+ *        result.
+ **/
 void verifyLLBound(void)
 {
+    // TODO: Ensure that the scheduler is not running
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
     uint32_t ulNumTasks = listCURRENT_LIST_LENGTH(readyList);
     float fLLBound = (2 * (powf(2, 1 / (float) ulNumTasks) - 1));
@@ -778,8 +788,14 @@ void verifyLLBound(void)
 }
 
 
+/**
+ * @brief Verify that the scheduled task set is schedulable by carrying our the exact EDF demand
+ *        analysis.
+ * @note This function will assert should the task set be schedulable.
+ **/
 void verifyEDFExactBound(void)
 {
+    // TODO: Ensure that the scheduler is not running
     float fTotalUtilization = getTotalUtilization();
     printk("Total U is: %d\r\n", (int32_t) (fTotalUtilization * 100));
     if( fTotalUtilization > 1 ) {
@@ -2811,7 +2827,6 @@ TickType_t xSmallestTick = 0xFFFFFFFF;
                                         #if( configUSE_SCHEDULER_EDF == 1 )
                                             pxTCB->xStateListItem.xItemValue = pxTCB->xRelativeDeadline;
                                             pxTCB->xCurrentRunTime = 0;
-                                            printk("Moving a task out of delay: %s\r\n", pxTCB->pcTaskName);
                                          #endif
 					prvAddTaskToReadyList( pxTCB );
 
