@@ -104,8 +104,9 @@ typedef void * TaskHandle_t;
 
 
 void busyWait( TickType_t ticks );
-void printSchedule( void );
-TickType_t getTime( void );
+void printSchedule(void);
+TickType_t getTime(void);
+void verifyLLBound(void);
 
 /*
  * Defines the prototype to which the application task hook function must
