@@ -73,10 +73,10 @@
 	.global FreeRTOS_IRQ_Handler
 	.global FreeRTOS_SVC_Handler
 	.global vPortRestoreTaskContext
+    .global debugGetStack
 
-
-.macro portSAVE_CONTEXT
-
+    .macro portSAVE_CONTEXT
+    
 	/* Save the LR and SPSR onto the system mode stack before switching to
 	system mode to save the remaining system mode registers. */
 	SRSDB	sp!, #SYS_MODE
@@ -159,8 +159,19 @@
 .align 4
 .type FreeRTOS_SVC_Handler, %function
 FreeRTOS_SVC_Handler:
+    
+#if configUSE_SHARED_RUNTIME_STACK == 1
+    PUSH    {R0}
+    LDR     R0, pxCurrentTCBConst
+    CMP     R0, #0
+    POP     {R0}    
+    BEQ     SVC_Handler_after_save
+#endif
+        
 	/* Save the context of the current task and select a new task to run. */
 	portSAVE_CONTEXT
+    
+SVC_Handler_after_save: 
 	LDR R0, vTaskSwitchContextConst
 	BLX	R0
 	portRESTORE_CONTEXT
@@ -175,6 +186,12 @@ vPortRestoreTaskContext:
 	/* Switch to system mode. */
 	CPS		#SYS_MODE
 	portRESTORE_CONTEXT
+    
+.align 4
+.type debugGetStack, %function
+debugGetStack:
+    MOV R0, SP
+    MOV PC, LR
 
 .align 4
 .type FreeRTOS_IRQ_Handler, %function
@@ -261,8 +278,18 @@ switch_before_exit:
 	POP		{LR}
 	MSR		SPSR_cxsf, LR
 	POP		{LR}
+    
+#if configUSE_SHARED_RUNTIME_STACK == 1
+    PUSH    {R0}
+    LDR     R0, pxCurrentTCBConst
+    CMP     R0, #0
+    POP     {R0}    
+    BEQ     IRQ_Handler_after_save
+#endif
+        
 	portSAVE_CONTEXT
-
+IRQ_Handler_after_save: 
+    
 	/* Call the function that selects the new task to execute.
 	vTaskSwitchContext() if vTaskSwitchContext() uses LDRD or STRD
 	instructions, or 8 byte aligned stack allocated data.  LR does not need

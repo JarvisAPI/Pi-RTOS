@@ -396,6 +396,13 @@ typedef struct tskTaskControlBlock
     #if( configUSE_SRP == 1 )
         StackType_t xPreemptionLevel;
     #endif
+
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+    TaskFunction_t pxTaskCode;
+    void *pvParameters;
+    TickType_t xLastWakeTime;
+#endif
+
 } tskTCB;
 
 /* The old tskTCB name is maintained above then typedefed to the new TCB_t name
@@ -474,9 +481,10 @@ TickType_t getTime( void )
 
 void printSchedule( void )
 {
-    if ( pxCurrentTCB )
+    if ( pxCurrentTCB ) {
         printk("Current Task %s, deadline %d\r\n", pxCurrentTCB->pcTaskName, (uint64_t ) pxCurrentTCB->xRelativeDeadline);
-
+        printk("Current Task %s, pxTopOfStack: 0x%x, pxStack: 0x%x\r\n", pxCurrentTCB->pcTaskName, pxCurrentTCB->pxTopOfStack, pxCurrentTCB->pxStack);
+    }
     List_t* readyList = &pxReadyTasksLists[1];
     ListItem_t const* endMarker = listGET_END_MARKER( readyList );
     ListItem_t* currentItem = listGET_HEAD_ENTRY( readyList );
@@ -647,16 +655,21 @@ static void prvInitialiseNewTask( 	TaskFunction_t pxTaskCode,
 static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 
 #if( configUSE_SRP == 1 )
+
 typedef struct Resource_s {
     uint32_t *xCeilPtr; // Pointer to the resource ceiling value of a task
     SemaphoreHandle_t xSemaphore;
 } Resource_t;
 
 typedef struct Stack_s {
-    StackType_t *xStack;
-    size_t xSize;
-    size_t xMaxSize;
+    StackType_t *xStackTop; // Last item on the stack
+    StackType_t *xStackTopLimit; // The highest memory address that stack can have    
+    StackType_t *xStackBottomLimit; // The lowest memory address that stack can grow
 } Stack_t;
+
+/* Invariant: The size of (number of values in) mSysCeilStack should always be at least 1. */
+static Stack_t mSysCeilStack;
+static Stack_t mRuntimeStack;
 
 static StackType_t srpSysCeilStackPeak(void);
 
@@ -863,7 +876,11 @@ void verifyEDFExactBound(void)
     #if( configUSE_SCHEDULER_EDF == 1 )
 	BaseType_t xTaskCreate(	TaskFunction_t pxTaskCode,
 							const char * const pcName,
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+                            uint16_t usStackDepth,
+#else
 							const uint16_t usStackDepth,
+#endif /* configUSE_SHARED_RUNTIME_STACK */
 							void * const pvParameters,
 							UBaseType_t uxPriority,
                             TickType_t xWCET,
@@ -882,6 +899,14 @@ void verifyEDFExactBound(void)
 	TCB_t *pxNewTCB;
 	BaseType_t xReturn;
 
+#if( configUSE_SHARED_RUNTIME_STACK == 1)
+    if ( pxTaskCode != prvIdleTask ) {
+        pxNewTCB = ( TCB_t * ) pvPortMalloc( sizeof( TCB_t ) );        
+        usStackDepth = 0;
+    }
+    else {
+#endif /* configUSE_SHARED_RUNTIME_STACK */
+        
 		/* If the stack grows down then allocate the stack then the TCB so the stack
 		does not grow into the TCB.  Likewise if the stack grows up then allocate
 		the TCB then the stack. */
@@ -937,6 +962,10 @@ void verifyEDFExactBound(void)
 			}
 		}
 		#endif /* portSTACK_GROWTH */
+        
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+    }
+#endif /* configUSE_SHARED_RUNTIME_STACK */
         
 		if( pxNewTCB != NULL )
 		{
@@ -999,6 +1028,10 @@ UBaseType_t x;
 		uxPriority &= ~portPRIVILEGE_BIT;
 	#endif /* portUSING_MPU_WRAPPERS == 1 */
 
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )        
+    if ( pxTaskCode == prvIdleTask ) {
+#endif
+        printk("Inside here!!!\r\n");
 	/* Avoid dependency on memset() if it is not required. */
 	#if( ( configCHECK_FOR_STACK_OVERFLOW > 1 ) || ( configUSE_TRACE_FACILITY == 1 ) || ( INCLUDE_uxTaskGetStackHighWaterMark == 1 ) )
 	{
@@ -1031,6 +1064,10 @@ UBaseType_t x;
 		pxNewTCB->pxEndOfStack = pxNewTCB->pxStack + ( ulStackDepth - ( uint32_t ) 1 );
 	}
 	#endif /* portSTACK_GROWTH */
+
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+}
+#endif /* configUSE_SHARED_RUNTIME_STACK */
 
 	/* Store the task name in the TCB. */
 	for( x = ( UBaseType_t ) 0; x < ( UBaseType_t ) configMAX_TASK_NAME_LEN; x++ )
@@ -1148,6 +1185,45 @@ UBaseType_t x;
 	}
 	#endif
 
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+    configASSERT( mRuntimeStack.xStackTop != NULL );
+
+    pxNewTCB->pxTaskCode = pxTaskCode;
+    pxNewTCB->pvParameters = pvParameters;
+    pxNewTCB->xLastWakeTime = 0;
+    
+    if( pxTaskCode != prvIdleTask ) {
+        printk("prvInitialisNewTask: Initializing task that is not the idle task\r\n");
+        pxNewTCB->pxTopOfStack = NULL;
+        pxNewTCB->pxStack = NULL;
+    
+        /* If scheduler has yet to start and priority of task is the highest, then
+           initialize it on the runtime stack. */
+        /* TODO: We assume that the scheduler can never be stopped, or else we might be
+           overwriting another task's stack variables. */
+        if( xSchedulerRunning == pdFALSE) {
+            /* Scheduler is not running and no task has their execution halted. */
+            printk("pxCurrentTCB: 0x%x\r\n", pxCurrentTCB);
+            if ( pxCurrentTCB != NULL ) {
+                printk("pxCurrentTCB->uxPriority: %u\r\n", pxCurrentTCB->uxPriority);            
+            }
+            if( pxCurrentTCB == NULL || (pxCurrentTCB->uxPriority < pxNewTCB->uxPriority) ||
+                ( pxNewTCB->xStateListItem.xItemValue < pxCurrentTCB->xStateListItem.xItemValue)) {
+                /* New task has higher priority so we need to reconfigure initial runtime stack */
+                printk("RuntimeStack: xStackTop: 0x%x\r\n", mRuntimeStack.xStackTop);
+                pxTopOfStack = pxPortInitialiseStack( mRuntimeStack.xStackTopLimit, pxTaskCode, pvParameters );
+                printk("pxTopOfStack: 0x%x\r\n", pxTopOfStack);
+                pxNewTCB->pxTopOfStack = pxTopOfStack;
+                mRuntimeStack.xStackTop = pxTopOfStack;
+
+                pxNewTCB->pxStack = mRuntimeStack.xStackTopLimit + 1;
+                printk("pxNewTCB->pxStack: 0x%x\r\n", pxNewTCB->pxStack);
+            }
+        }
+    }
+    else {
+#endif /* configUSE_SHARED_RUNTIME-STACK */
+        
 	/* Initialize the TCB stack to look as if the task was already running,
 	but had been interrupted by the scheduler.  The return address is set
 	to the start of the task function. Once the stack has been initialised
@@ -1161,6 +1237,11 @@ UBaseType_t x;
 		pxNewTCB->pxTopOfStack = pxPortInitialiseStack( pxTopOfStack, pxTaskCode, pvParameters );
 	}
 	#endif /* portUSING_MPU_WRAPPERS */
+    
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+    }
+#endif /* configUSE_SHARED_RUNTIME_STACK */
+    
 	if( ( void * ) pxCreatedTask != NULL )
 	{
 		/* Pass the handle out in an anonymous way.  The handle can be used to
@@ -1241,8 +1322,6 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB )
             // TODO: By scanning through only ready tasks we are not allowing for
             // online scheduling.
             List_t *vReadyList = &pxReadyTasksLists[PRIORITY_EDF];
-
-            uint32_t vNumTasks = listCURRENT_LIST_LENGTH( vReadyList );
 
             ListItem_t const *vEndMarker = listGET_END_MARKER( vReadyList );
             ListItem_t *vCurrentItem = vEndMarker->pxPrevious;
@@ -1399,6 +1478,17 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB )
 
 		vTaskSuspendAll();
 		{
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+            printk("vTaskDelayUntil!!!!\r\n");
+            if( pxCurrentTCB->pxTaskCode != prvIdleTask ) {
+                configASSERT( pxCurrentTCB->pxStack != NULL );
+                mRuntimeStack.xStackTop = pxCurrentTCB->pxStack;
+                
+                pxCurrentTCB->pxStack = NULL;
+                pxCurrentTCB->pxTopOfStack = NULL;
+            }
+#endif
+            
 			/* Minor optimisation.  The tick count cannot change in this
 			block. */
 			const TickType_t xConstTickCount = xTickCount;
@@ -2112,9 +2202,9 @@ BaseType_t xReturn;
 								"IDLE", configMINIMAL_STACK_SIZE,
 								( void * ) NULL,
 								( tskIDLE_PRIORITY | portPRIVILEGE_BIT ),
-                                                                0xFFFFFFFF,
-                                                                0xFFFFFFFF,
-                                                                0xFFFFFFFF,
+                                0xFFFFFFFF,
+                                0xFFFFFFFF,
+                                0xFFFFFFFF,
 								&xIdleTaskHandle ); /*lint !e961 MISRA exception, justified as it is not a redundant explicit cast to all supported compilers. */
 	}
 	#endif /* configSUPPORT_STATIC_ALLOCATION */
@@ -3136,6 +3226,22 @@ void vTaskSwitchContext( void )
 			_impure_ptr = &( pxCurrentTCB->xNewLib_reent );
 		}
 		#endif /* configUSE_NEWLIB_REENTRANT */
+
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+        printk("In vTaskSwitchContext\r\n");
+        if ( pxCurrentTCB->pxTaskCode != prvIdleTask ) {
+            if ( pxCurrentTCB->pxStack == NULL ) {
+                configASSERT( pxCurrentTCB->pxTopOfStack == NULL );
+            
+                pxCurrentTCB->pxStack = mRuntimeStack.xStackTop;
+            
+                mRuntimeStack.xStackTop = pxPortInitialiseStack( mRuntimeStack.xStackTop - 1, pxCurrentTCB->pxTaskCode, pxCurrentTCB->pvParameters );
+
+                configASSERT( mRuntimeStack.xStackTop > mRuntimeStack.xStackBottomLimit );
+                pxCurrentTCB->pxTopOfStack = mRuntimeStack.xStackTop;
+            }
+        }
+#endif /* configUSE_SHARED_RUNTIME_STACK */
 	}
 }
 /*-----------------------------------------------------------*/
@@ -5132,31 +5238,32 @@ const TickType_t xConstTickCount = xTickCount;
 #endif
 
 #ifndef MAX_RUNTIME_STACK_DEPTH
-    #define MAX_RUNTIME_STACK_DEPTH 100 // Number of stack variables that stack can hold
+    #define MAX_RUNTIME_STACK_DEPTH 512 // Number of stack variables that stack can hold
 #endif
 
-/* Invariant: The size of (number of values in) mSysCeilStack should always be at least 1. */
-static Stack_t mSysCeilStack;
-static Stack_t mRuntimeStack;
-
 BaseType_t srpInitSRPStacks(void) {
-    mSysCeilStack.xMaxSize = MAX_SYS_CEIL_LEVELS * sizeof( StackType_t );
+    uint32_t xMaxSysCeilStackSize, xMaxRuntimeStackSize;
     
-    mSysCeilStack.xStack = pvPortMalloc( mSysCeilStack.xMaxSize );
+    xMaxSysCeilStackSize = MAX_SYS_CEIL_LEVELS * sizeof( StackType_t );
+    
+    mSysCeilStack.xStackTop = pvPortMalloc( xMaxSysCeilStackSize );
 
-    if ( mSysCeilStack.xStack != NULL ) {
-        mRuntimeStack.xMaxSize = MAX_RUNTIME_STACK_DEPTH * sizeof( StackType_t );
+    if ( mSysCeilStack.xStackTop != NULL ) {
+        xMaxRuntimeStackSize = MAX_RUNTIME_STACK_DEPTH * sizeof( StackType_t );
         
-        mRuntimeStack.xStack = pvPortMalloc( mRuntimeStack.xMaxSize );
+        mRuntimeStack.xStackTop = pvPortMalloc( xMaxRuntimeStackSize );
 
-        if ( mRuntimeStack.xStack == NULL ) {
-            vPortFree( mSysCeilStack.xStack );
-            mSysCeilStack.xStack = NULL;
+        if ( mRuntimeStack.xStackTop == NULL ) {
+            vPortFree( mSysCeilStack.xStackTop );
+            mSysCeilStack.xStackTop = NULL;
             return pdFALSE;
         }
     }
-    mSysCeilStack.xSize = 0;
-    mRuntimeStack.xSize = 0;
+    mSysCeilStack.xStackTopLimit = mSysCeilStack.xStackTop;
+    mSysCeilStack.xStackBottomLimit = mSysCeilStack.xStackTop - xMaxSysCeilStackSize;
+
+    mRuntimeStack.xStackTopLimit = mRuntimeStack.xStackTop;
+    mRuntimeStack.xStackBottomLimit = mRuntimeStack.xStackTop - xMaxRuntimeStackSize;
     
     /* Push NULL to indicate lowest system ceiling. */
     srpSysCeilStackPush( (StackType_t) NULL );
@@ -5238,18 +5345,18 @@ BaseType_t srpSemaphoreGive(ResourceHandle_t vResourceHandle) {
 static StackType_t srpSysCeilStackPeak(void) {
     StackType_t vStackVar;
 
-    configASSERT(mSysCeilStack.xStack != NULL);
+    configASSERT(mSysCeilStack.xStackTop != NULL);
     
-    vStackVar = *(mSysCeilStack.xStack + mSysCeilStack.xSize - 1);
+    vStackVar = *mSysCeilStack.xStackTop;
     
     return vStackVar;
 }
 
 static void srpSysCeilStackPop(void) {
-    configASSERT( mSysCeilStack.xStack != NULL );
-    configASSERT( mSysCeilStack.xSize > 1 );
+    configASSERT( mSysCeilStack.xStackTop != NULL );
+    configASSERT( mSysCeilStack.xStackTop < mSysCeilStack.xStackTopLimit );
     
-    mSysCeilStack.xSize--;
+    mSysCeilStack.xStackTop++;
 }
 
 static void srpSysCeilStackPush(StackType_t vStackVar) {
@@ -5261,8 +5368,8 @@ static void srpSysCeilStackPush(StackType_t vStackVar) {
 static void srpStackPush(Stack_t *vStackT, StackType_t vStackVar) {
     configASSERT(vStackT != NULL);
     
-    *(vStackT->xStack + vStackT->xSize) = vStackVar;
-    vStackT->xSize++;
+    *vStackT->xStackTop = vStackVar;
+    vStackT->xStackTop--;
 }
 
 void srpConfigToUseResource(ResourceHandle_t vResourceHandle, TaskHandle_t vTaskHandle) {
@@ -5277,7 +5384,15 @@ void srpConfigToUseResource(ResourceHandle_t vResourceHandle, TaskHandle_t vTask
         pxResource->xCeilPtr = &pxTCB->xPreemptionLevel;
     }
 }
-    
+
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+
+void srpTaskDelay(const TickType_t xTimeIncrement) {
+    vTaskDelayUntil( &pxCurrentTCB->xLastWakeTime, xTimeIncrement );
+}
+
+#endif /* configUSE_SHARED_RUNTIME_STACK */
+
 #endif /* configUSE_SRP */
 
 
