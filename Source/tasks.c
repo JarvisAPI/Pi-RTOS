@@ -495,7 +495,7 @@ void printSchedule( void )
         printk("Task %s, deadline %u, remaining %u, preemption level: %u\r\n", tcb->pcTaskName,
                (uint32_t) tcb->xRelativeDeadline,
                (uint32_t) currentItem->xItemValue,
-               (uint32_t) tcb->xPreemptionLevel);
+               0);
         currentItem = listGET_NEXT( currentItem );
     }
 }
@@ -1272,8 +1272,6 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB )
             // TODO: By scanning through only ready tasks we are not allowing for
             // online scheduling.
             List_t *vReadyList = &pxReadyTasksLists[PRIORITY_EDF];
-
-            uint32_t vNumTasks = listCURRENT_LIST_LENGTH( vReadyList );
 
             ListItem_t const *vEndMarker = listGET_END_MARKER( vReadyList );
             ListItem_t *vCurrentItem = vEndMarker->pxPrevious;
@@ -2785,22 +2783,20 @@ implementations require configUSE_TICKLESS_IDLE to be set to a value other than
 
 void RestartMissedTask(TCB_t* pxMissedTCB)
 {
-    taskENTER_CRITICAL();
+    taskENTER_CRITICAL_FROM_ISR();
 
     // Calculate by how long we have to wait to reschedule
     TickType_t xTimeToSleep = (pxMissedTCB->xPeriod - pxMissedTCB->xRelativeDeadline) + pxMissedTCB->xPeriod;
     // Update the sleep time
     pxMissedTCB->xLastWakeTime = xTimeToSleep + xTickCount;
     // Delay the current task ( should be the same task
-    ++uxSchedulerSuspended;
     TCB_t* pxOldCurrentTCB = pxCurrentTCB;
     pxCurrentTCB = pxMissedTCB;
-    vTaskDelay(xTimeToSleep);
+    prvAddCurrentTaskToDelayedList( xTimeToSleep, pdFALSE );
     pxCurrentTCB = pxOldCurrentTCB;
-    --uxSchedulerSuspended;
     pxMissedTCB->xNoPreserve = pdTRUE;
 
-    taskEXIT_CRITICAL();
+    taskEXIT_CRITICAL_FROM_ISR(0);
 }
 
 BaseType_t xTaskIncrementTick( void )
