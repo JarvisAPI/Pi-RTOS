@@ -17,13 +17,8 @@ extern uint32_t debugGetStack(void);
 
 void TimingTestTask1(void *pParam) {
     while(1) {
-        //int i = 0;
         printk("[Task1]: Running\r\n");
-        printk("[Task1]: Stack: 0x%x\r\n", debugGetStack());
-        //printk("[Task1]: Before i: %u\r\n", i);
-        //i += 12;
-        busyWait( 25 );
-        //printk("[Task1]: After i: %u\r\n", i);
+        busyWait( 20 );
         printk("[Task1]: Finished\r\n");
         srpTaskDelay( xTimingDelay1 );
     }
@@ -95,12 +90,12 @@ int main(void) {
     rpi_cpu_irq_disable();
     rpi_aux_mu_init();
 
-    //rpi_gpio_sel_fun(47, 1);			// RDY led
+    //rpi_gpio_sel_fun(47, 1);			// RDY led                
     //rpi_gpio_sel_fun(35, 1);			// RDY led
 
-    //TaskHandle_t mTask2, mTask3;
+    TaskHandle_t mTask2, mTask3;
     BaseType_t vVal;
-    //mCounter = 0;
+    mCounter = 0;
 
     vVal = srpInitSRPStacks();
     
@@ -114,21 +109,21 @@ int main(void) {
         printk("Successfully initialized SRP stacks\r\n");
     }
 
-    xTaskCreate(TimingTestTask1, "TASK_0", 256, NULL, 1, 30, 200, xTimingDelay1, NULL);
-    //xTaskCreate(TimingTestTask2, "TASK_1", 256, NULL, 1, 105, 300, xTimingDelay2, &mTask2);
-    //xTaskCreate(TimingTestTask3, "TASK_2", 256, NULL, 1, 155, 400, xTimingDelay3, &mTask3);    
+    xTaskCreate(TimingTestTask1, "TASK_0", 256, NULL, 1, 30, xTimingDelay1, xTimingDelay1, NULL);
+    xTaskCreate(TimingTestTask2, "TASK_1", 256, NULL, 1, 105, 300, xTimingDelay2, &mTask2);
+    xTaskCreate(TimingTestTask3, "TASK_2", 256, NULL, 1, 155, 400, xTimingDelay3, &mTask3);    
 
-    /*
+    
     mR1 = srpSemaphoreCreateBinary();
     if (mR1 == NULL) {
         printk("Failed to create resource\r\n");
     }
     else {
         printk("Resource created successfully\r\n");
-    }*/
+    }
     
-    //srpConfigToUseResource(mR1, mTask2);
-    //srpConfigToUseResource(mR1, mTask3);
+    srpConfigToUseResource(mR1, mTask2);
+    srpConfigToUseResource(mR1, mTask3);
 
     printSchedule();
     vTaskStartScheduler();
