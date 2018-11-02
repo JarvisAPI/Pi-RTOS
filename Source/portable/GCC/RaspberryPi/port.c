@@ -69,6 +69,7 @@
 
 /* Standard includes. */
 #include <stdlib.h>
+#include <printk.h>
 
 /* Scheduler includes. */
 #include "FreeRTOS.h"
