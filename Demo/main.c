@@ -47,6 +47,8 @@ void TimingTestTask(void *pParam) {
         printk("Started Task iter at: %u\r\n", xTaskGetTickCount());
         printk("Start Timing task %d\r\n", xTaskInfo->iTaskNumber);
         busyWait(xTaskInfo->xWCET);
+        //if (xTaskInfo->iTaskNumber == 1)
+        //    busyWait(xTaskInfo->xWCET);
         printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
         endTaskPeriod();
     }

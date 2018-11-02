@@ -386,6 +386,9 @@ typedef struct tskTaskControlBlock
                 TickType_t xWCET;
                 TickType_t xPeriod;
                 TickType_t xLastWakeTime;
+                TaskFunction_t pxTaskCode;
+                uint32_t usStackDepth;
+                void* const pvParameters;
         #endif
 
 } tskTCB;
@@ -946,6 +949,8 @@ void endTaskPeriod(void)
                             pxNewTCB->xRelativeDeadline = xRelativeDeadline;
                             pxNewTCB->xWCET = xWCET;
                             pxNewTCB->xLastWakeTime = xTaskGetTickCount();
+                            pxNewTCB->pxTaskCode = pxTaskCode;
+                            pxNewTCB->usStackDepth = usStackDepth;
                         }
 			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
                         #endif /* configUSE_SCHEDULER_EDF */
@@ -2711,6 +2716,27 @@ implementations require configUSE_TICKLESS_IDLE to be set to a value other than
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
+void RestartMissedTask(TCB_t* missedTCB)
+{
+    portTICK_TYPE_ENTER_CRITICAL();
+    {
+        // Calculate by how long we have to wait to reschedule
+        TickType_t xTimeToSleep = (missedTCB->xPeriod - missedTCB->xRelativeDeadline) + missedTCB->xPeriod;
+        // First we need to recreate the task
+        TaskHandle_t newTCB = NULL;
+        /*xTaskCreate(missedTCB->pxTaskCode, missedTCB->pcTaskName, missedTCB->usStackDepth,
+                    missedTCB->pvParameters, missedTCB->uxPriority, missedTCB->xWCET,
+                    missedTCB->xRelativeDeadline, missedTCB->xPeriod, &newTCB );*/
+        // Delete the old task
+        vTaskDelete(missedTCB);
+        // Delay the new task
+        //TCB_t* pxCurrentTCBBackup = pxCurrentTCB;
+        //pxCurrentTCB = newTCB;
+        //vTaskDelay(xTimeToSleep);
+        //pxCurrentTCB = pxCurrentTCBBackup;
+    }
+
+}
 
 BaseType_t xTaskIncrementTick( void )
 {
@@ -2718,6 +2744,7 @@ TCB_t * pxTCB;
 TickType_t xItemValue;
 BaseType_t xSwitchRequired = pdFALSE;
 TickType_t xSmallestTick = 0xFFFFFFFF;
+BaseType_t currTaskReset = pdFALSE;
 
 #if( configUSE_SCHEDULER_EDF == 1 )
 {
@@ -2740,12 +2767,21 @@ TickType_t xSmallestTick = 0xFFFFFFFF;
             else
             {
                 printk("Missed Deadline, will reset processor!\r\n");
-                while(1);
+                // If the current task is the task to reset then we need
+                if (currentTCB == pxCurrentTCB)
+                {
+                    currTaskReset = pdTRUE;
+                    printk("Current Task Missed Deadline!\r\n");
+                }
+                RestartMissedTask(currentTCB);
             }
             currentItem = listGET_NEXT( currentItem );
         }
     }
 }
+
+if (currTaskReset)
+    return pdTRUE;
 #endif
 	/* Called by the portable layer each time a tick interrupt occurs.
 	Increments the tick then checks to see if the new tick value will cause any
