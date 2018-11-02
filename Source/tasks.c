@@ -388,7 +388,8 @@ typedef struct tskTaskControlBlock
                 TickType_t xLastWakeTime;
                 TaskFunction_t pxTaskCode;
                 uint32_t usStackDepth;
-                void* const pvParameters;
+                void*  pvParameters;
+                BaseType_t xNoPreserve;
         #endif
 
 } tskTCB;
@@ -843,7 +844,7 @@ void verifyEDFExactBound(void)
 
         currentItem = listGET_NEXT( currentItem );
     }
-    printk("Task set has passed deadline");
+    printk("Task set has passed exact deadline analysis!\r\n");
     return;
 
 }
@@ -951,9 +952,11 @@ void endTaskPeriod(void)
                             pxNewTCB->xLastWakeTime = xTaskGetTickCount();
                             pxNewTCB->pxTaskCode = pxTaskCode;
                             pxNewTCB->usStackDepth = usStackDepth;
+                            pxNewTCB->xNoPreserve = pdFALSE;
+                            pxNewTCB->pvParameters = pvParameters;
                         }
-			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
                         #endif /* configUSE_SCHEDULER_EDF */
+			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
 			prvAddNewTaskToReadyList( pxNewTCB );
 			xReturn = pdPASS;
 		}
@@ -2265,7 +2268,7 @@ BaseType_t xAlreadyYielded = pdFALSE;
 
 					/* If the moved task has a priority higher than the current
 					task then a yield must be performed. */
-					if( pxTCB->uxPriority >= pxCurrentTCB->uxPriority )
+					if( pxTCB->uxPriority > pxCurrentTCB->uxPriority )
 					{
 						xYieldPending = pdTRUE;
 					}
@@ -2716,73 +2719,60 @@ implementations require configUSE_TICKLESS_IDLE to be set to a value other than
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
-void RestartMissedTask(TCB_t* missedTCB)
+void RestartMissedTask(TCB_t* pxMissedTCB)
 {
-    portTICK_TYPE_ENTER_CRITICAL();
-    {
-        // Calculate by how long we have to wait to reschedule
-        TickType_t xTimeToSleep = (missedTCB->xPeriod - missedTCB->xRelativeDeadline) + missedTCB->xPeriod;
-        // First we need to recreate the task
-        TaskHandle_t newTCB = NULL;
-        /*xTaskCreate(missedTCB->pxTaskCode, missedTCB->pcTaskName, missedTCB->usStackDepth,
-                    missedTCB->pvParameters, missedTCB->uxPriority, missedTCB->xWCET,
-                    missedTCB->xRelativeDeadline, missedTCB->xPeriod, &newTCB );*/
-        // Delete the old task
-        vTaskDelete(missedTCB);
-        // Delay the new task
-        //TCB_t* pxCurrentTCBBackup = pxCurrentTCB;
-        //pxCurrentTCB = newTCB;
-        //vTaskDelay(xTimeToSleep);
-        //pxCurrentTCB = pxCurrentTCBBackup;
-    }
+    taskENTER_CRITICAL();
 
+    // Calculate by how long we have to wait to reschedule
+    TickType_t xTimeToSleep = (pxMissedTCB->xPeriod - pxMissedTCB->xRelativeDeadline) + pxMissedTCB->xPeriod;
+    // Delay the current task ( should be the same task
+    ++uxSchedulerSuspended;
+    TCB_t* pxOldCurrentTCB = pxCurrentTCB;
+    pxCurrentTCB = pxMissedTCB;
+    vTaskDelay(xTimeToSleep);
+    pxCurrentTCB = pxOldCurrentTCB;
+    --uxSchedulerSuspended;
+    pxMissedTCB->xNoPreserve = pdTRUE;
+
+    taskEXIT_CRITICAL();
 }
 
 BaseType_t xTaskIncrementTick( void )
 {
-TCB_t * pxTCB;
-TickType_t xItemValue;
-BaseType_t xSwitchRequired = pdFALSE;
-TickType_t xSmallestTick = 0xFFFFFFFF;
-BaseType_t currTaskReset = pdFALSE;
+    TCB_t * pxTCB;
+    TickType_t xItemValue;
+    BaseType_t xSwitchRequired = pdFALSE;
+    TickType_t xSmallestTick = 0xFFFFFFFF;
 
-#if( configUSE_SCHEDULER_EDF == 1 )
-{
-    List_t *readyList;
-    ListItem_t *currentItem;
-    ListItem_t const *endMarker;
-    TCB_t * currentTCB;
+    #if( configUSE_SCHEDULER_EDF == 1 )
+    {
+        List_t* readyList = &pxReadyTasksLists[pxCurrentTCB->uxPriority];
+        ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+        ListItem_t const* endMarker = listGET_END_MARKER(readyList);
 
-    if (pxCurrentTCB->uxPriority != 0) {
-        readyList = &pxReadyTasksLists[ pxCurrentTCB->uxPriority ];
-        endMarker = listGET_END_MARKER( readyList );
-        currentItem = listGET_HEAD_ENTRY( readyList );
-        while( currentItem != endMarker ) {
-            currentTCB = listGET_LIST_ITEM_OWNER( currentItem );
-            // TODO: Remove task if xItemValue is 0, since task missed its deadline
-            if (currentTCB->xStateListItem.xItemValue > 0) {
+        BaseType_t xForceReschedule = pdFALSE;
+        while(currentItem != endMarker)
+        {
+            TCB_t* currentTCB = listGET_LIST_ITEM_OWNER(currentItem);
+            if (currentTCB->xStateListItem.xItemValue > 0)
+            {
                 currentTCB->xStateListItem.xItemValue--;
-                xSmallestTick = MIN( xSmallestTick, currentTCB->xStateListItem.xItemValue );
+                xSmallestTick = MIN(xSmallestTick, currentTCB->xStateListItem.xItemValue);
             }
             else
             {
                 printk("Missed Deadline, will reset processor!\r\n");
-                // If the current task is the task to reset then we need
-                if (currentTCB == pxCurrentTCB)
-                {
-                    currTaskReset = pdTRUE;
-                    printk("Current Task Missed Deadline!\r\n");
-                }
                 RestartMissedTask(currentTCB);
+                xForceReschedule = pdTRUE;
+                return pdTRUE;
             }
-            currentItem = listGET_NEXT( currentItem );
+            currentItem = listGET_NEXT(currentItem);
         }
+        if(xForceReschedule == pdTRUE)
+            return pdTRUE;
     }
-}
+    #endif
 
-if (currTaskReset)
-    return pdTRUE;
-#endif
 	/* Called by the portable layer each time a tick interrupt occurs.
 	Increments the tick then checks to see if the new tick value will cause any
 	tasks to be unblocked. */
@@ -3056,6 +3046,15 @@ if (currTaskReset)
 #endif /* configUSE_APPLICATION_TASK_TAG */
 /*-----------------------------------------------------------*/
 
+void vRestartTask(TCB_t* tcb)
+{
+    StackType_t *pxTopOfStack;
+    pxTopOfStack = tcb->pxStack + ( tcb->usStackDepth - ( uint32_t ) 1 );
+    pxTopOfStack = ( StackType_t * ) ( ( ( portPOINTER_SIZE_TYPE ) pxTopOfStack ) & ( ~( ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) ) );
+    configASSERT( ( ( ( portPOINTER_SIZE_TYPE ) pxTopOfStack & ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) == 0UL ) );
+    tcb->pxTopOfStack = pxPortInitialiseStack( pxTopOfStack, tcb->pxTaskCode, tcb->pvParameters );
+}
+
 void vTaskSwitchContext( void )
 {
 	if( uxSchedulerSuspended != ( UBaseType_t ) pdFALSE )
@@ -3095,6 +3094,13 @@ void vTaskSwitchContext( void )
 				ulTaskSwitchedInTime = ulTotalRunTime;
 		}
 		#endif /* configGENERATE_RUN_TIME_STATS */
+
+                // Re Initialize the task
+                if( pxCurrentTCB->xNoPreserve == pdTRUE)
+                {
+                    vRestartTask(pxCurrentTCB);
+                    pxCurrentTCB->xNoPreserve = pdFALSE;
+                }
 
 		/* Check for stack overflow, if configured. */
 		taskCHECK_FOR_STACK_OVERFLOW();

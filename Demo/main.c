@@ -41,14 +41,20 @@ TaskInfo_t overrunDemo[] =
 const int iNumTasks = 2;
 TaskInfo_t* tasks = overrunDemo;
 
+BaseType_t wow = pdFALSE;
+
 void TimingTestTask(void *pParam) {
     TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
     while(1) {
         printk("Started Task iter at: %u\r\n", xTaskGetTickCount());
         printk("Start Timing task %d\r\n", xTaskInfo->iTaskNumber);
         busyWait(xTaskInfo->xWCET);
-        //if (xTaskInfo->iTaskNumber == 1)
-        //    busyWait(xTaskInfo->xWCET);
+        if (wow == pdFALSE)
+        {
+            wow = pdTRUE;
+            busyWait(xTaskInfo->xWCET+10000);
+            printk("THIS SHOULD NEVER PRINT%d\r\n", xTaskInfo->iTaskNumber);
+        }
         printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
         endTaskPeriod();
     }
