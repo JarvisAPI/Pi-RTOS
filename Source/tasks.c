@@ -2725,6 +2725,8 @@ void RestartMissedTask(TCB_t* pxMissedTCB)
 
     // Calculate by how long we have to wait to reschedule
     TickType_t xTimeToSleep = (pxMissedTCB->xPeriod - pxMissedTCB->xRelativeDeadline) + pxMissedTCB->xPeriod;
+    // Update the sleep time
+    pxMissedTCB->xLastWakeTime = xTimeToSleep + xTickCount;
     // Delay the current task ( should be the same task
     ++uxSchedulerSuspended;
     TCB_t* pxOldCurrentTCB = pxCurrentTCB;
@@ -2764,6 +2766,7 @@ BaseType_t xTaskIncrementTick( void )
                 printk("Missed Deadline, will reset processor!\r\n");
                 RestartMissedTask(currentTCB);
                 xForceReschedule = pdTRUE;
+                printk("About to force a reschedule!\r\n");
                 return pdTRUE;
             }
             currentItem = listGET_NEXT(currentItem);
@@ -3048,6 +3051,7 @@ BaseType_t xTaskIncrementTick( void )
 
 void vRestartTask(TCB_t* tcb)
 {
+    printk("Restarting Task!\r\n");
     StackType_t *pxTopOfStack;
     pxTopOfStack = tcb->pxStack + ( tcb->usStackDepth - ( uint32_t ) 1 );
     pxTopOfStack = ( StackType_t * ) ( ( ( portPOINTER_SIZE_TYPE ) pxTopOfStack ) & ( ~( ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) ) );
