@@ -141,7 +141,7 @@ NVIC value of 255. */
 
 /* Choose the resource sharing protocol */
 #define configUSE_SRP 1
-#define configUSE_SHARED_RUNTIME_STACK 1
+#define configUSE_SHARED_RUNTIME_STACK 0
 
 #endif /* FREERTOS_CONFIG_H */
 

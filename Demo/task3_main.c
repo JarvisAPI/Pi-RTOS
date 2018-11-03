@@ -15,7 +15,7 @@ void TimingTestTask1(void *pParam) {
         printk("\033[31;1m[Task1]: Running\r\n\033[0m");
         busyWait( 25 );
         printk("[Task1]: Finished\r\n");
-        endTaskPeriod();                
+        vEndTaskPeriod();                
     }
 }
 
@@ -43,7 +43,7 @@ void TimingTestTask2(void *pParam) {
         }
         busyWait( 100 );
         printk("[Task2]: Finished\r\n");
-        endTaskPeriod();        
+        vEndTaskPeriod();        
     }
 }
 
@@ -71,7 +71,7 @@ void TimingTestTask3(void *pParam) {
         }
         busyWait( 150 );
         printk("[Task3]: Finished\r\n");
-        endTaskPeriod();
+        vEndTaskPeriod();        
     }
 }
 

@@ -2898,7 +2898,9 @@ void RestartMissedTask(TCB_t* pxMissedTCB)
     pxMissedTCB->xNoPreserve = pdTRUE;
 
     // Loop through every resource and release the resource
-    vSRPTCBSemaphoreGive(pxMissedTCB);
+    #if ( configUSE_SRP == 1)
+        vSRPTCBSemaphoreGive(pxMissedTCB);
+    #endif
     taskEXIT_CRITICAL_FROM_ISR(0);
 }
 #endif /* configUSE_SCHEDULER_EDF */
