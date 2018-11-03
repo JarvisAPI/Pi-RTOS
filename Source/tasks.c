@@ -412,6 +412,8 @@ static variables must be declared volatile. */
 
 PRIVILEGED_DATA TCB_t * volatile pxCurrentTCB = NULL;
 
+PRIVILEGED_DATA static List_t pxResourceList;/*< Prioritised ready tasks. */
+
 /* Lists for ready and blocked tasks. --------------------*/
 PRIVILEGED_DATA static List_t pxReadyTasksLists[ configMAX_PRIORITIES ];/*< Prioritised ready tasks. */
 PRIVILEGED_DATA static List_t xDelayedTaskList1;						/*< Delayed tasks. */
@@ -658,6 +660,8 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 
 #if( configUSE_SRP == 1 )
 typedef struct Resource_s {
+    ListItem_t xResistItem;
+    TCB_t* owner;
     uint32_t *xCeilPtr; // Pointer to the resource ceiling value of a task
     SemaphoreHandle_t xSemaphore;
 } Resource_t;
