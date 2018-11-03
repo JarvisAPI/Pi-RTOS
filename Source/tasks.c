@@ -412,8 +412,6 @@ static variables must be declared volatile. */
 
 PRIVILEGED_DATA TCB_t * volatile pxCurrentTCB = NULL;
 
-PRIVILEGED_DATA static List_t pxResourceList;/*< Prioritised ready tasks. */
-
 /* Lists for ready and blocked tasks. --------------------*/
 PRIVILEGED_DATA static List_t pxReadyTasksLists[ configMAX_PRIORITIES ];/*< Prioritised ready tasks. */
 PRIVILEGED_DATA static List_t xDelayedTaskList1;						/*< Delayed tasks. */
@@ -421,6 +419,10 @@ PRIVILEGED_DATA static List_t xDelayedTaskList2;						/*< Delayed tasks (two lis
 PRIVILEGED_DATA static List_t * volatile pxDelayedTaskList;				/*< Points to the delayed task list currently being used. */
 PRIVILEGED_DATA static List_t * volatile pxOverflowDelayedTaskList;		/*< Points to the delayed task list currently being used to hold tasks that have overflowed the current tick count. */
 PRIVILEGED_DATA static List_t xPendingReadyList;						/*< Tasks that have been readied while the scheduler was suspended.  They will be moved to the ready list when the scheduler is resumed. */
+
+#if ( configUSE_SRP == 1 )
+    PRIVILEGED_DATA static List_t pxResourceList;/*< Prioritised ready tasks. */
+#endif /* configUSE_SRP */
 
 #if( INCLUDE_vTaskDelete == 1 )
 
@@ -659,14 +661,16 @@ static void prvInitialiseNewTask( 	TaskFunction_t pxTaskCode,
 static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 
 #if( configUSE_SRP == 1 )
-typedef struct Resource_s {
-    ListItem_t xResistItem;
-    TCB_t* owner;
+typedef struct Resource_s
+{
+    ListItem_t xResourceItem;
+    TCB_t* pxOwner;
     uint32_t *xCeilPtr; // Pointer to the resource ceiling value of a task
     SemaphoreHandle_t xSemaphore;
 } Resource_t;
 
-typedef struct Stack_s {
+typedef struct Stack_s
+{
     StackType_t *xStack;
     size_t xSize;
     size_t xMaxSize;
@@ -5232,14 +5236,13 @@ const TickType_t xConstTickCount = xTickCount;
 static Stack_t mSysCeilStack;
 static Stack_t mRuntimeStack;
 
-BaseType_t srpInitSRPStacks(void) {
+BaseType_t vSRPInitSRP(void) {
     mSysCeilStack.xMaxSize = MAX_SYS_CEIL_LEVELS * sizeof( StackType_t );
-    
+
     mSysCeilStack.xStack = pvPortMalloc( mSysCeilStack.xMaxSize );
 
     if ( mSysCeilStack.xStack != NULL ) {
         mRuntimeStack.xMaxSize = MAX_RUNTIME_STACK_DEPTH * sizeof( StackType_t );
-        
         mRuntimeStack.xStack = pvPortMalloc( mRuntimeStack.xMaxSize );
 
         if ( mRuntimeStack.xStack == NULL ) {
@@ -5250,69 +5253,75 @@ BaseType_t srpInitSRPStacks(void) {
     }
     mSysCeilStack.xSize = 0;
     mRuntimeStack.xSize = 0;
-    
     /* Push NULL to indicate lowest system ceiling. */
     srpSysCeilStackPush( (StackType_t) NULL );
+
+    vListInitialise(&pxResourceList);
 
     return pdTRUE;
 }
 
-ResourceHandle_t srpSemaphoreCreateBinary(void) {
-    Resource_t *vResource = pvPortMalloc( sizeof( Resource_t ) );
+ResourceHandle_t vSRPSemaphoreCreateBinary(void) {
 
-    if ( vResource != NULL ) {
+    Resource_t *vResource = pvPortMalloc(sizeof(Resource_t));
+    if (vResource != NULL)
+    {
         vResource->xSemaphore = xSemaphoreCreateBinary();
-        
-        if ( vResource->xSemaphore == NULL ) {
-            vPortFree( vResource );
+        if (vResource->xSemaphore == NULL)
+        {
+            vPortFree(vResource);
             vResource = NULL;
         }
-        else {
+        else
+        {
             vResource->xCeilPtr = NULL;
-            xSemaphoreGive( vResource->xSemaphore );
+            xSemaphoreGive(vResource->xSemaphore);
         }
     }
+
+    vResource->pxOwner = NULL;
+
+    vListInitialiseItem(&(vResource->xResourceItem));
+    listSET_LIST_ITEM_OWNER(&(vResource->xResourceItem), vResource);
+    vListInsertEnd(&pxResourceList, &(vResource->xResourceItem));
+
     return (ResourceHandle_t) vResource;
 }
 
 /* This function is called from the task level */
-BaseType_t srpSemaphoreTake(ResourceHandle_t vResourceHandle, TickType_t xBlockTime) {
+BaseType_t vSRPSemaphoreTake(ResourceHandle_t vResourceHandle, TickType_t xBlockTime) {
     BaseType_t vVal;
     StackType_t *vTopPtr;
     Resource_t *vResource;
 
     vResource = (Resource_t *) vResourceHandle;
-    
+
     portENTER_CRITICAL();
-
     vTopPtr = (StackType_t *) srpSysCeilStackPeak();
-
     configASSERT( vTopPtr == NULL || pxCurrentTCB->xPreemptionLevel > *vTopPtr );
-    
     srpSysCeilStackPush( (StackType_t) &pxCurrentTCB->xPreemptionLevel );
-    
     portEXIT_CRITICAL();
-    
+
     vVal = xSemaphoreTake( vResource->xSemaphore, xBlockTime );
 
     if ( vVal == pdFALSE ) {
-        portENTER_CRITICAL();        
-        
+        portENTER_CRITICAL();
         srpSysCeilStackPop();
-
-        portEXIT_CRITICAL();        
+        portEXIT_CRITICAL();
     }
+
+    vResource->pxOwner = pxCurrentTCB;
 
     return vVal;
 }
 
 /* This function is called from the task level */
-BaseType_t srpSemaphoreGive(ResourceHandle_t vResourceHandle) {
+BaseType_t vSRPSemaphoreGive(ResourceHandle_t vResourceHandle) {
     BaseType_t vVal;
     Resource_t *vResource;
 
     vResource = (Resource_t *) vResourceHandle;
-    
+
     vVal = xSemaphoreGive( vResource->xSemaphore );
 
     if ( vVal == pdFALSE ) {
@@ -5320,10 +5329,10 @@ BaseType_t srpSemaphoreGive(ResourceHandle_t vResourceHandle) {
     }
 
     portENTER_CRITICAL();
-
     srpSysCeilStackPop();
-
     portEXIT_CRITICAL();
+
+    vResource->pxOwner = NULL;
 
     return pdTRUE;
 }

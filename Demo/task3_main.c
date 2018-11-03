@@ -36,7 +36,7 @@ void TimingTestTask2(void *pParam) {
     while(1) {
         printk("[Task2]: Running\r\n");
         printk("[Task2]: Acquiring resource R1\r\n");
-        vVal = srpSemaphoreTake(mR1, portMAX_DELAY);
+        vVal = vSRPSemaphoreTake(mR1, portMAX_DELAY);
         if ( vVal == pdTRUE ) {
             printk("[Task2]: Obtained resource R1!\r\n");
             printk("[Task2]: Starting counter: %u\r\n", mCounter);
@@ -45,7 +45,7 @@ void TimingTestTask2(void *pParam) {
             }
             printk("[Task2]: Ending counter: %u\r\n", mCounter);
             printk("[Task2]: Releasing resource R1\r\n");
-            vVal = srpSemaphoreGive(mR1);
+            vVal = vSRPSemaphoreGive(mR1);
             printk("[Task2]: Released resource R1!\r\n");            
         }
         else {
@@ -66,7 +66,7 @@ void TimingTestTask3(void *pParam) {
     while(1) {
         printk("[Task3]: Running\r\n");
         printk("[Task3]: Acquiring resource R1\r\n");
-        vVal = srpSemaphoreTake(mR1, portMAX_DELAY);
+        vVal = vSRPSemaphoreTake(mR1, portMAX_DELAY);
         if ( vVal == pdTRUE ) {
             printk("[Task3]: Obtained resource R1!\r\n");
             printk("[Task3]: Starting counter: %u\r\n", mCounter);
@@ -75,7 +75,7 @@ void TimingTestTask3(void *pParam) {
             }
             printk("[Task3]: Ending counter: %u\r\n", mCounter);
             printk("[Task3]: Releasing resource R1\r\n");
-            vVal = srpSemaphoreGive(mR1);
+            vVal = vSRPSemaphoreGive(mR1);
             printk("[Task3]: Released resource R1!\r\n");            
         }
         else {
@@ -108,7 +108,7 @@ int main(void) {
     xTaskCreate(TimingTestTask2, "TASK_1", 256, NULL, 1, 105, 300, xTimingDelay2, &mTask2);
     xTaskCreate(TimingTestTask3, "TASK_2", 256, NULL, 1, 155, 400, xTimingDelay3, &mTask3);
 
-    vVal = srpInitSRPStacks();
+    vVal = vSRPInitSRP();
     if (vVal == pdFALSE) {
         printk("Failed to initialize SRP stacks\r\n");
         while (1) {
@@ -119,7 +119,7 @@ int main(void) {
         printk("Successfully initialized SRP stacks\r\n");
     }
 
-    mR1 = srpSemaphoreCreateBinary();
+    mR1 = vSRPSemaphoreCreateBinary();
     if (mR1 == NULL) {
         printk("Failed to create resource\r\n");
     }

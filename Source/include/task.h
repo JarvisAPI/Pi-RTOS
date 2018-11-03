@@ -2287,25 +2287,25 @@ typedef void * ResourceHandle_t;
 /*
  * Initializes the system ceiling and the runtime stack used for SRP.
  */
-BaseType_t srpInitSRPStacks(void);
+BaseType_t vSRPInitSRP(void);
 
 /*
  * Create binary semaphore, see semphr.h for more details. Called before
  * starting the scheduler.
  */
-ResourceHandle_t srpSemaphoreCreateBinary(void);
+ResourceHandle_t vSRPSemaphoreCreateBinary(void);
 
 /*
  * Take binary semaphore, see semphr.h for more details. As a consequence of acquiring
  * a resource in the SRP protocol, the system ceiling is updated. Called by a task.
  */
-BaseType_t srpSemaphoreTake(ResourceHandle_t vResource, TickType_t xBlockTime);
+BaseType_t vSRPSemaphoreTake(ResourceHandle_t vResource, TickType_t xBlockTime);
 
 /*
  * Give binary semaphore, see semphr.h for more details. As a consequence of releasing
  * a resource in the SRP protocol, the system ceiling is reduced. Called by a task.
  */
-BaseType_t srpSemaphoreGive(ResourceHandle_t vResource);
+BaseType_t vSRPSemaphoreGive(ResourceHandle_t vResource);
 
 /**
  * Inorder for a task to be allowed to use a shared resource protected by a
