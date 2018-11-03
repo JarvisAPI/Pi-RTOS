@@ -678,7 +678,8 @@ typedef struct Stack_s
 
 static StackType_t srpSysCeilStackPeak(void);
 
-static void srpSysCeilStackPop(void);
+static void vSRPSysCeilStackPop(void);
+static void vSRPTCBSemaphoreGive(TCB_t* tcb);
 
 static void srpSysCeilStackPush(StackType_t vStackVar);
 
@@ -2826,6 +2827,8 @@ void RestartMissedTask(TCB_t* pxMissedTCB)
     // its stack when swaping it out/in
     pxMissedTCB->xNoPreserve = pdTRUE;
 
+    // Loop through every resource and release the resource
+    vSRPTCBSemaphoreGive(pxMissedTCB);
     taskEXIT_CRITICAL_FROM_ISR(0);
 }
 #endif /* configUSE_SCHEDULER_EDF */
@@ -5288,6 +5291,7 @@ ResourceHandle_t vSRPSemaphoreCreateBinary(void) {
     return (ResourceHandle_t) vResource;
 }
 
+
 /* This function is called from the task level */
 BaseType_t vSRPSemaphoreTake(ResourceHandle_t vResourceHandle, TickType_t xBlockTime) {
     BaseType_t vVal;
@@ -5306,7 +5310,7 @@ BaseType_t vSRPSemaphoreTake(ResourceHandle_t vResourceHandle, TickType_t xBlock
 
     if ( vVal == pdFALSE ) {
         portENTER_CRITICAL();
-        srpSysCeilStackPop();
+        vSRPSysCeilStackPop();
         portEXIT_CRITICAL();
     }
 
@@ -5329,7 +5333,7 @@ BaseType_t vSRPSemaphoreGive(ResourceHandle_t vResourceHandle) {
     }
 
     portENTER_CRITICAL();
-    srpSysCeilStackPop();
+    vSRPSysCeilStackPop();
     portEXIT_CRITICAL();
 
     vResource->pxOwner = NULL;
@@ -5337,20 +5341,37 @@ BaseType_t vSRPSemaphoreGive(ResourceHandle_t vResourceHandle) {
     return pdTRUE;
 }
 
+void vSRPTCBSemaphoreGive(TCB_t* tcb)
+{
+
+    ListItem_t const* xEndMarker = listGET_END_MARKER(&pxResourceList);
+    ListItem_t* xCurrentItem = listGET_HEAD_ENTRY(&pxResourceList);
+    while(xCurrentItem != xEndMarker)
+    {
+        Resource_t* xResource = listGET_LIST_ITEM_OWNER(xCurrentItem);
+        if (xResource->pxOwner == tcb )
+        {
+             BaseType_t pdVal = xSemaphoreGive(xResource->xSemaphore);
+             configASSERT(pdVal == pdTRUE);
+             vSRPSysCeilStackPop();
+        }
+    }
+}
+
 static StackType_t srpSysCeilStackPeak(void) {
     StackType_t vStackVar;
 
     configASSERT(mSysCeilStack.xStack != NULL);
-    
+
     vStackVar = *(mSysCeilStack.xStack + mSysCeilStack.xSize - 1);
-    
+
     return vStackVar;
 }
 
-static void srpSysCeilStackPop(void) {
+static void vSRPSysCeilStackPop(void) {
     configASSERT( mSysCeilStack.xStack != NULL );
     configASSERT( mSysCeilStack.xSize > 1 );
-    
+
     mSysCeilStack.xSize--;
 }
 
