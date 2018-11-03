@@ -102,13 +102,6 @@ extern "C" {
  */
 typedef void * TaskHandle_t;
 
-
-void busyWait( TickType_t ticks );
-void printSchedule(void);
-TickType_t getTime(void);
-void verifyLLBound(void);
-void vEndTaskPeriod(void);
-
 /*
  * Defines the prototype to which the application task hook function must
  * conform.
@@ -2279,6 +2272,42 @@ eSleepModeStatus eTaskConfirmSleepModeStatus( void ) PRIVILEGED_FUNCTION;
  */
 void *pvTaskIncrementMutexHeldCount( void ) PRIVILEGED_FUNCTION;
 
+#if( configUSE_SCHEDULER_EDF == 1 )
+
+/**
+ * @brief Generate the LL bound for the scheduled task set, compare the utilization and report the
+ *        result.
+ **/
+void vVerifyLLBound(void);
+
+/**
+ * @brief Verify that the scheduled task set is schedulable by carrying our the exact EDF demand
+ *        analysis.
+ * @note This function will assert should the task set be schedulable.
+ **/
+void vVerifyEDFExactBound(void);
+
+/**
+ * @brief Simulate task execution by waiting for a certain number of ticks to elapse while this task
+ *        being executed.
+ * @param ticks The number of ticks to keep the processor busy for.
+ **/
+void vBusyWait(TickType_t ticks);
+
+
+/**
+ * @brief Prints the status of the currently scheduled tasks
+ **/
+void vPrintSchedule(void);
+
+/**
+ *  @brief Signals the completion of the current task's execution during this period and places it
+ *         on the wait queue for the next period.
+ **/
+void vEndTaskPeriod(void);
+
+#endif /* configUSE_SCHEDULER_EDF */
+
 
 #if( configUSE_SCHEDULER_EDF == 1 && configUSE_SRP == 1 )
 
@@ -2319,8 +2348,6 @@ BaseType_t vSRPSemaphoreGive(ResourceHandle_t vResource);
 void srpConfigToUseResource(ResourceHandle_t vResouce, TaskHandle_t vTaskHandle);
 
 #endif /* configUSE_SRP */
-
-void verifyEDFExactBound(void);
 
 #ifdef __cplusplus
 }

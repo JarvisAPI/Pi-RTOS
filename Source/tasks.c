@@ -469,39 +469,41 @@ PRIVILEGED_DATA static volatile UBaseType_t uxSchedulerSuspended	= ( UBaseType_t
 
 /*lint +e956 */
 
-
 /**
  * @brief Simulate task execution by waiting for a certain number of ticks to elapse while this task
  *        being.executed.
  * @param ticks The number of ticks to keep the processor busy for.
  **/
-void busyWait(TickType_t ticks)
+void vBusyWait(TickType_t ticks)
 {
     while(pxCurrentTCB->xCurrentRunTime < ticks);
     return;
 }
 
-TickType_t getTime( void )
+/**
+ * @brief Prints the status of the currently scheduled tasks
+ **/
+void vPrintSchedule(void)
 {
-    return xTickCount;
-}
-
-
-void printSchedule( void )
-{
-    if ( pxCurrentTCB ) {
-        printk("Current Task %s, deadline %d\r\n", pxCurrentTCB->pcTaskName, (uint64_t ) pxCurrentTCB->xRelativeDeadline);
-    }
-    List_t* readyList = &pxReadyTasksLists[1];
-    ListItem_t const* endMarker = listGET_END_MARKER( readyList );
-    ListItem_t* currentItem = listGET_HEAD_ENTRY( readyList );
-    while( currentItem != endMarker ) {
-        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
-        printk("Task %s, deadline %u, remaining %u, preemption level: %u\r\n", tcb->pcTaskName,
-               (uint32_t) tcb->xRelativeDeadline,
-               (uint32_t) currentItem->xItemValue,
-               0);
-        currentItem = listGET_NEXT( currentItem );
+    List_t* pxReadyList = &pxReadyTasksLists[PRIORITY_EDF];
+    ListItem_t* pxCurrentItem = listGET_HEAD_ENTRY(pxReadyList);
+    ListItem_t const* pxEndMarker = listGET_END_MARKER(pxReadyList);
+    while(pxCurrentItem != pxEndMarker)
+    {
+        TCB_t* pxTCB = listGET_LIST_ITEM_OWNER(pxCurrentItem);
+        #if ( configUSE_SRP == 1 )
+            printk("Task %s, deadline %u, remaining %u, preemption level: %u\r\n",
+                   pxTCB->pcTaskName,
+                   (uint32_t) pxTCB->xRelativeDeadline,
+                   (uint32_t) pxCurrentItem->xItemValue,
+                   (uint32_t) pxTCB->xPreemptionLevel);
+        #else
+            printk("Task %s, deadline %u, remaining %u\r\n",
+                   pxTCB->pcTaskName,
+                   (uint32_t) pxTCB->xRelativeDeadline,
+                   (uint32_t) pxCurrentItem->xItemValue);
+        #endif
+        pxCurrentItem = listGET_NEXT(pxCurrentItem);
     }
 }
 
@@ -832,7 +834,7 @@ float getEDFLStart(void)
  * @brief Generate the LL bound for the scheduled task set, compare the utilization and report the
  *        result.
  **/
-void verifyLLBound(void)
+void vVerifyLLBound(void)
 {
     // TODO: Ensure that the scheduler is not running
     List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
@@ -852,7 +854,7 @@ void verifyLLBound(void)
  *        analysis.
  * @note This function will assert should the task set be schedulable.
  **/
-void verifyEDFExactBound(void)
+void vVerifyEDFExactBound(void)
 {
     // TODO: Ensure that the scheduler is not running
     float fTotalUtilization = getTotalUtilization();
