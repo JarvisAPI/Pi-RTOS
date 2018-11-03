@@ -86,7 +86,7 @@
 #define configTICK_RATE_HZ			( ( TickType_t ) 1000 )
 #define configMAX_PRIORITIES		5
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 4096 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 4 * 4096 ) )
 #define configMAX_TASK_NAME_LEN		( 16 )
 #define configUSE_TRACE_FACILITY	0
 #define configUSE_16_BIT_TICKS		0
@@ -104,6 +104,9 @@ extern void vSetupTimerInterrupt( void );
 
 extern void vClearTimerInterrupt( void );
 #define configCLEAR_TICK_INTERRUPT vClearTimerInterrupt
+
+extern void vASSERT(void);
+#define configASSERT( x ) if( ( x ) == 0 ) vASSERT();
 
 extern volatile uint32_t portEOIStub;
 #define configEOI_ADDRESS 0x8014UL
@@ -135,6 +138,10 @@ NVIC value of 255. */
 
 /* Chooses the scheduling algorithm */
 #define configUSE_SCHEDULER_EDF 1
+
+/* Choose the resource sharing protocol */
+#define configUSE_SRP 1
+#define configUSE_SHARED_RUNTIME_STACK 1
 
 #endif /* FREERTOS_CONFIG_H */
 

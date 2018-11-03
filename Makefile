@@ -9,7 +9,7 @@ GDB = $(TOOLCHAIN)gdb
 LIBGCC = $(shell $(CC) -print-libgcc-file-name)
 
 
-SOURCES = Demo/main.c \
+SOURCES = Demo/task3_main.c \
           Demo/startup.c \
           Demo/Drivers/rpi_gpio.c \
           Demo/Drivers/rpi_irq.c \
@@ -24,6 +24,9 @@ SOURCES = Demo/main.c \
           Source/portable/GCC/RaspberryPi/portASM.c \
           Source/portable/MemMang/heap_4.c \
           Source/printk.c \
+          Source/assert.c \
+          Source/queue.c \
+          Source/string.c \
 
 OBJECTS = $(patsubst %.c,build/%.o,$(SOURCES))
 

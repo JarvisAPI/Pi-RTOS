@@ -6,9 +6,12 @@
 #include "Drivers/rpi_irq.h"
 #include "Drivers/rpi_aux.h"
 
-const TickType_t xTimingDelay1 = 200 / portTICK_PERIOD_MS;
-const TickType_t xTimingDelay2 = 300 / portTICK_PERIOD_MS;
-const TickType_t xTimingDelay3 = 400 / portTICK_PERIOD_MS;
+// Number of increments it takes to wait for 1ms, with tick interrupts happening in between
+// This value was obtained by using binary search on a single task with 10ms deadline
+#define MAGIC_COUNT 745
+
+static TickType_t xStartTime = 0;
+
 
 typedef struct TaskInfo_s
 {
@@ -21,39 +24,24 @@ typedef struct TaskInfo_s
 
 
 // Define tasks
-TaskInfo_t edfLStarDemo[] =
+const int iNumTasks = 3;
+TaskInfo_t tasks[] =
 {
     {1, 900, 3000, 2000, "Task 1"},
     {2, 1900, 7000, 5500, "Task 2"},
     {3, 1900, 10000, 6000, "Task 3"}
 };
 
-//Overrun Demo
-TaskInfo_t overrunDemo[] =
-{
-    {1, 1000, 2000, 2000, "Task 1"},
-    {2, 1000, 4000, 4000, "Task 2"},
-};
 
-const int iNumTasks = 2;
-TaskInfo_t* tasks = overrunDemo;
-
-BaseType_t wow = pdFALSE;
 
 void TimingTestTask(void *pParam) {
+    TickType_t xLastWakeTime = xStartTime;
+    TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
     while(1) {
-        TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;        
-        printk("Started Task iter at: %u\r\n", xTaskGetTickCount());
         printk("Start Timing task %d\r\n", xTaskInfo->iTaskNumber);
         busyWait(xTaskInfo->xWCET);
-        if (wow == pdFALSE)
-        {
-            wow = pdTRUE;
-            busyWait(xTaskInfo->xWCET+10000);
-            printk("THIS SHOULD NEVER PRINT%d\r\n", xTaskInfo->iTaskNumber);
-        }
         printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
-        endTaskPeriod();
+        vTaskDelayUntil( &xLastWakeTime, xTaskInfo->xPeriod );
     }
 }
 
@@ -64,22 +52,12 @@ void TimingTestTask(void *pParam) {
  *	-- the same prototype as you'd see in a linux program.
  **/
 int main(void) {
-    BaseType_t vVal;
-    
     rpi_cpu_irq_disable();
     rpi_aux_mu_init();
 
-    vVal = srpInitSRPStacks();
-    if (vVal == pdFALSE) {
-        printk("Failed to initialize SRP stacks\r\n");
-        while (1) {
-            
-        }
-    }
-    else {
-        printk("Successfully initialized SRP stacks\r\n");
-    }
-    
+    rpi_gpio_sel_fun(47, 1);			// RDY led
+    rpi_gpio_sel_fun(35, 1);			// RDY led
+
 
     // Create tasksk
     for (int iTaskNum = 0; iTaskNum < iNumTasks; iTaskNum++)
@@ -88,10 +66,11 @@ int main(void) {
                     PRIORITY_EDF, tasks[iTaskNum].xWCET, tasks[iTaskNum].xRelativeDeadline,
                     tasks[iTaskNum].xPeriod, NULL);
     }
-    printk("Finish creating tasks\r\n");
+
     printSchedule();
     verifyEDFExactBound();
     verifyLLBound();
+    xStartTime = xTaskGetTickCount();
     vTaskStartScheduler();
 
     /*
