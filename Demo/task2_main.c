@@ -7,12 +7,6 @@
 #include "Drivers/rpi_irq.h"
 #include "Drivers/rpi_aux.h"
 
-// Number of increments it takes to wait for 1ms, with tick interrupts happening in between
-// This value was obtained by using binary search on a single task with 10ms deadline
-
-static TickType_t xStartTime = 0;
-
-
 typedef struct TaskInfo_s
 {
     int iTaskNumber;
@@ -20,6 +14,7 @@ typedef struct TaskInfo_s
     TickType_t xPeriod;
     TickType_t xRelativeDeadline;
     const char* name;
+    const char* color;
 } TaskInfo_t;
 
 
@@ -27,24 +22,25 @@ typedef struct TaskInfo_s
 const int iNumTasks = 3;
 TaskInfo_t tasks[] =
 {
-    {1, 900, 3000, 2000, "Task 1"},
-    {2, 1900, 7000, 5500, "Task 2"},
-    {3, 1900, 10000, 6000, "Task 3"}
+    {1, 900, 3000, 2000, "Task 1", "[32;1m"},
+    {2, 1900, 7000, 5500, "Task 2", "[33;1m"},
+    {3, 1900, 10000, 6000, "Task 3", "[34;1m"}
 };
 
-//Overrun Demo
-TaskInfo_t overrunDemo[] =
-{
-    {1, 1000, 2000, 2000, "Task 1"},
-    {2, 1000, 4000, 4000, "Task 2"},
-};
 
 void TimingTestTask(void *pParam) {
-    TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
     while(1) {
-        printk("Start Timing task %d\r\n", xTaskInfo->iTaskNumber);
-        busyWait(xTaskInfo->xWCET);
-        printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
+        TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
+
+        printk("\033%s[ Task %d ] Started at %u\r\n\033[0m", xTaskInfo->color,
+                                                             xTaskInfo->iTaskNumber,
+                                                             xTaskGetTickCount());
+
+        vBusyWait(xTaskInfo->xWCET);
+
+        printk("\033%s[ Task %d ] Ended at %u\r\n\033[0m", xTaskInfo->color,
+                                                           xTaskInfo->iTaskNumber,
+                                                           xTaskGetTickCount());
         vEndTaskPeriod();
     }
 }
@@ -59,11 +55,7 @@ int main(void) {
     rpi_cpu_irq_disable();
     rpi_aux_mu_init();
 
-    rpi_gpio_sel_fun(47, 1);			// RDY led
-    rpi_gpio_sel_fun(35, 1);			// RDY led
-
-
-    // Create tasksk
+    // Create tasks
     for (int iTaskNum = 0; iTaskNum < iNumTasks; iTaskNum++)
     {
         xTaskCreate(TimingTestTask, tasks[iTaskNum].name, 256, (void *) &tasks[iTaskNum],
@@ -71,10 +63,10 @@ int main(void) {
                     tasks[iTaskNum].xPeriod, NULL);
     }
 
-    printSchedule();
-    verifyEDFExactBound();
-    verifyLLBound();
-    xStartTime = xTaskGetTickCount();
+    vPrintSchedule();
+    vVerifyEDFExactBound();
+    vVerifyLLBound();
+
     vTaskStartScheduler();
 
     /*
