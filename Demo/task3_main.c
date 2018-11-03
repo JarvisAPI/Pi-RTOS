@@ -1,3 +1,4 @@
+#ifdef TASK3_SRP
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -141,4 +142,5 @@ int main(void) {
         ;
     }
 }
+#endif
 

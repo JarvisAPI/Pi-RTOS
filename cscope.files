@@ -1,5 +1,6 @@
 ./Source/tasks.c
 ./Source/croutine.c
+./Source/edfexact.c
 ./Source/portable/GCC/RaspberryPi/port.c
 ./Source/portable/GCC/RaspberryPi/portmacro.h
 ./Source/portable/GCC/RaspberryPi/portISR.c
@@ -8,6 +9,7 @@
 ./Source/portable/MemMang/heap_4.c
 ./Source/portable/MemMang/heap_1.c
 ./Source/portable/MemMang/heap_5.c
+./Source/string.c
 ./Source/include/projdefs.h
 ./Source/include/printk.h
 ./Source/include/mpu_wrappers.h
@@ -24,10 +26,14 @@
 ./Source/include/semphr.h
 ./Source/include/deprecated_definitions.h
 ./Source/event_groups.c
+./Source/sqrtf.c
+./Source/sqrt.c
+./Source/assert.c
 ./Source/printk.c
 ./Source/timers.c
 ./Source/list.c
 ./Source/queue.c
+./Source/powf.c
 ./Demo/Drivers/rpi_systimer.c
 ./Demo/Drivers/rpi_gpio.h
 ./Demo/Drivers/rpi_i2c.c
@@ -41,4 +47,5 @@
 ./Demo/Drivers/rpi_systimer.h
 ./Demo/Drivers/rpi_timer.h
 ./Demo/FreeRTOSConfig.h
-./Demo/main.c
+./Demo/task3_main.c
+./Demo/task2_main.c

@@ -1,3 +1,4 @@
+#ifdef TASK2
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -56,7 +57,7 @@ void TimingTestTask(void *pParam) {
             printk("THIS SHOULD NEVER PRINT%d\r\n", xTaskInfo->iTaskNumber);
         }
         printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
-        endTaskPeriod();
+        vEndTaskPeriod();
     }
 }
 
@@ -96,4 +97,5 @@ int main(void) {
         ;
     }
 }
+#endif
 

@@ -107,7 +107,7 @@ void busyWait( TickType_t ticks );
 void printSchedule(void);
 TickType_t getTime(void);
 void verifyLLBound(void);
-void endTaskPeriod(void);
+void vEndTaskPeriod(void);
 
 /*
  * Defines the prototype to which the application task hook function must
