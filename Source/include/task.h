@@ -2318,16 +2318,6 @@ BaseType_t srpSemaphoreGive(ResourceHandle_t vResource);
  */
 void srpConfigToUseResource(ResourceHandle_t vResouce, TaskHandle_t vTaskHandle);
 
-#if( configUSE_SHARED_RUNTIME_STACK == 1 )
-
-/**
- * If using shared runtime stack, this function MUST be used instead of 
- * vTaskDelay() or vTaskDelayUntil() to reschedule a task at a later time.
- */
-void srpTaskDelay(const TickType_t xTimeIncrement);
-
-#endif /* configUSE_SHARED_RUNTIME_STACK */
-
 #endif /* configUSE_SRP */
 
 void verifyEDFExactBound(void);

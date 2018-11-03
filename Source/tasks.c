@@ -5446,14 +5446,6 @@ void srpConfigToUseResource(ResourceHandle_t vResourceHandle, TaskHandle_t vTask
     }
 }
 
-#if( configUSE_SHARED_RUNTIME_STACK == 1 )
-
-void srpTaskDelay(const TickType_t xTimeIncrement) {
-    vTaskDelayUntil( &pxCurrentTCB->xLastWakeTime, xTimeIncrement );
-}
-
-#endif /* configUSE_SHARED_RUNTIME_STACK */
-
 #endif /* configUSE_SRP */
 
 
