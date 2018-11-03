@@ -1,3 +1,4 @@
+#ifdef TASK2
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -8,7 +9,6 @@
 
 // Number of increments it takes to wait for 1ms, with tick interrupts happening in between
 // This value was obtained by using binary search on a single task with 10ms deadline
-#define MAGIC_COUNT 745
 
 static TickType_t xStartTime = 0;
 
@@ -32,16 +32,20 @@ TaskInfo_t tasks[] =
     {3, 1900, 10000, 6000, "Task 3"}
 };
 
-
+//Overrun Demo
+TaskInfo_t overrunDemo[] =
+{
+    {1, 1000, 2000, 2000, "Task 1"},
+    {2, 1000, 4000, 4000, "Task 2"},
+};
 
 void TimingTestTask(void *pParam) {
-    TickType_t xLastWakeTime = xStartTime;
     TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
     while(1) {
         printk("Start Timing task %d\r\n", xTaskInfo->iTaskNumber);
         busyWait(xTaskInfo->xWCET);
         printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
-        vTaskDelayUntil( &xLastWakeTime, xTaskInfo->xPeriod );
+        vEndTaskPeriod();
     }
 }
 
@@ -81,4 +85,5 @@ int main(void) {
         ;
     }
 }
+#endif
 

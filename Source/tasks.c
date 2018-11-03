@@ -386,21 +386,21 @@ typedef struct tskTaskControlBlock
 		uint8_t ucDelayAborted;
 	#endif
 
-    #if( configUSE_SCHEDULER_EDF == 1 )
-        TickType_t xRelativeDeadline;
-        TickType_t xCurrentRunTime;
-        TickType_t xWCET;
-        TickType_t xPeriod;
-        TickType_t xLastWakeTime;
-        TaskFunction_t pxTaskCode;
-        uint32_t usStackDepth;
-        void*  pvParameters;
-        BaseType_t xNoPreserve;
-    #endif
+        #if( configUSE_SCHEDULER_EDF == 1 )
+            TickType_t xRelativeDeadline;
+            TickType_t xCurrentRunTime;
+            TickType_t xWCET;
+            TickType_t xPeriod;
+            TickType_t xLastWakeTime;
+            TaskFunction_t pxTaskCode;
+            uint32_t usStackDepth;
+            void*  pvParameters;
+            BaseType_t xNoPreserve;
+        #endif
 
-    #if( configUSE_SRP == 1 )
-        StackType_t xPreemptionLevel;
-    #endif
+        #if( configUSE_SRP == 1 )
+            StackType_t xPreemptionLevel;
+        #endif
 
 } tskTCB;
 
@@ -420,6 +420,10 @@ PRIVILEGED_DATA static List_t xDelayedTaskList2;						/*< Delayed tasks (two lis
 PRIVILEGED_DATA static List_t * volatile pxDelayedTaskList;				/*< Points to the delayed task list currently being used. */
 PRIVILEGED_DATA static List_t * volatile pxOverflowDelayedTaskList;		/*< Points to the delayed task list currently being used to hold tasks that have overflowed the current tick count. */
 PRIVILEGED_DATA static List_t xPendingReadyList;						/*< Tasks that have been readied while the scheduler was suspended.  They will be moved to the ready list when the scheduler is resumed. */
+
+#if ( configUSE_SRP == 1 )
+    PRIVILEGED_DATA static List_t pxResourceList;/*< Prioritised ready tasks. */
+#endif /* configUSE_SRP */
 
 #if( INCLUDE_vTaskDelete == 1 )
 
@@ -496,7 +500,7 @@ void printSchedule( void )
         printk("Task %s, deadline %u, remaining %u, preemption level: %u\r\n", tcb->pcTaskName,
                (uint32_t) tcb->xRelativeDeadline,
                (uint32_t) currentItem->xItemValue,
-               (uint32_t) tcb->xPreemptionLevel);
+               0);
         currentItem = listGET_NEXT( currentItem );
     }
 }
@@ -658,13 +662,16 @@ static void prvInitialiseNewTask( 	TaskFunction_t pxTaskCode,
 static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 
 #if( configUSE_SRP == 1 )
-
-typedef struct Resource_s {
+typedef struct Resource_s
+{
+    ListItem_t xResourceItem;
+    TCB_t* pxOwner;
     uint32_t *xCeilPtr; // Pointer to the resource ceiling value of a task
     SemaphoreHandle_t xSemaphore;
 } Resource_t;
 
-typedef struct Stack_s {
+typedef struct Stack_s
+{
     StackType_t *xStackTop; // Last item on the stack
     StackType_t *xStackTopLimit; // The highest memory address that stack can have    
     StackType_t *xStackBottomLimit; // The lowest memory address that stack can grow
@@ -676,7 +683,8 @@ static Stack_t mRuntimeStack;
 
 static StackType_t srpSysCeilStackPeak(void);
 
-static void srpSysCeilStackPop(void);
+static void vSRPSysCeilStackPop(void);
+static void vSRPTCBSemaphoreGive(TCB_t* tcb);
 
 static void srpSysCeilStackPush(StackType_t vStackVar);
 
@@ -775,7 +783,11 @@ static void srpStackPush(Stack_t *vStackT, StackType_t vStackVar);
 #endif /* portUSING_MPU_WRAPPERS */
 /*-----------------------------------------------------------*/
 
-
+#if (configUSE_SCHEDULER_EDF == 1)
+/**
+ *  @brief Retrieves the total utilization of all created tasks.
+ *  @return The current task set utilization.
+ **/
 float getTotalUtilization(void)
 {
     float fCurrentUtilization = 0;
@@ -793,6 +805,11 @@ float getTotalUtilization(void)
     return fCurrentUtilization;
 }
 
+
+/**
+ *  @brief Retrieves L* for the currently specified task set
+ *  @return L* for all scheduled tasks
+ **/
 float getEDFLStart(void)
 {
     float fTotalUtilization = getTotalUtilization();
@@ -886,10 +903,15 @@ void verifyEDFExactBound(void)
 
 }
 
-void endTaskPeriod(void)
+/**
+ *  @brief Signals the completion of the current task's execution during this period and places it
+ *         on the wait queue for the next period.
+ **/
+void vEndTaskPeriod(void)
 {
     vTaskDelayUntil( &(pxCurrentTCB->xLastWakeTime), pxCurrentTCB->xPeriod );
 }
+#endif /* configUSE_SCHEDULER_EDF */
 
 #if( configSUPPORT_DYNAMIC_ALLOCATION == 1 )
     #if( configUSE_SCHEDULER_EDF == 1 )
@@ -913,7 +935,7 @@ void endTaskPeriod(void)
 							void * const pvParameters,
 							UBaseType_t uxPriority,
 							TaskHandle_t * const pxCreatedTask ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
-    #endif
+    #endif /* configUSE_SCHEDULER_EDF */
 	{
 	TCB_t *pxNewTCB;
 	BaseType_t xReturn;
@@ -996,19 +1018,21 @@ void endTaskPeriod(void)
 			}
 			#endif /* configSUPPORT_STATIC_ALLOCATION */
 
-            #if( configUSE_SCHEDULER_EDF == 1 )
-            {
-                pxNewTCB->xStateListItem.xItemValue = xRelativeDeadline;
-                pxNewTCB->xPeriod = xPeriod;
-                pxNewTCB->xRelativeDeadline = xRelativeDeadline;
-                pxNewTCB->xWCET = xWCET;
-                pxNewTCB->xLastWakeTime = xTaskGetTickCount();
-                pxNewTCB->pxTaskCode = pxTaskCode;
-                pxNewTCB->usStackDepth = usStackDepth;
-                pxNewTCB->xNoPreserve = pdFALSE;
-                pxNewTCB->pvParameters = pvParameters;
-            }
-            #endif /* configUSE_SCHEDULER_EDF */
+                        // Record all the information used by the EDF scheduler to handle
+                        // rescheduling and priority assignment.
+                        #if( configUSE_SCHEDULER_EDF == 1 )
+                        {
+                            pxNewTCB->xStateListItem.xItemValue = xRelativeDeadline;
+                            pxNewTCB->xPeriod = xPeriod;
+                            pxNewTCB->xRelativeDeadline = xRelativeDeadline;
+                            pxNewTCB->xWCET = xWCET;
+                            pxNewTCB->xLastWakeTime = xTaskGetTickCount();
+                            pxNewTCB->pxTaskCode = pxTaskCode;
+                            pxNewTCB->usStackDepth = usStackDepth;
+                            pxNewTCB->xNoPreserve = pdFALSE;
+                            pxNewTCB->pvParameters = pvParameters;
+                        }
+                        #endif /* configUSE_SCHEDULER_EDF */
 
 			prvInitialiseNewTask( pxTaskCode, pcName, ( uint32_t ) usStackDepth, pvParameters, uxPriority, pxCreatedTask, pxNewTCB, NULL );
 			prvAddNewTaskToReadyList( pxNewTCB );
@@ -1019,7 +1043,6 @@ void endTaskPeriod(void)
 			xReturn = errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY;
 		}
 
-        //verifyLLBound();
 		return xReturn;
 	}
 
@@ -2851,67 +2874,70 @@ implementations require configUSE_TICKLESS_IDLE to be set to a value other than
 #endif /* INCLUDE_xTaskAbortDelay */
 /*----------------------------------------------------------*/
 
+#if ( configUSE_SCHEDULER_EDF == 1 )
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 void RestartMissedTask(TCB_t* pxMissedTCB)
 {
-    taskENTER_CRITICAL();
+    taskENTER_CRITICAL_FROM_ISR();
 
     // Calculate by how long we have to wait to reschedule
     TickType_t xTimeToSleep = (pxMissedTCB->xPeriod - pxMissedTCB->xRelativeDeadline) + pxMissedTCB->xPeriod;
-    // Update the sleep time
+    // Update the woken time so that the vEndTaskPeriod calls function correctly
     pxMissedTCB->xLastWakeTime = xTimeToSleep + xTickCount;
-    // Delay the current task ( should be the same task
-    ++uxSchedulerSuspended;
+
+    // Delay the missed task. Note that the delay function only operates on the current TCB, thus we
+    // have to perform a temporary swap.
     TCB_t* pxOldCurrentTCB = pxCurrentTCB;
     pxCurrentTCB = pxMissedTCB;
-    vTaskDelay(xTimeToSleep);
+    prvAddCurrentTaskToDelayedList( xTimeToSleep, pdFALSE );
     pxCurrentTCB = pxOldCurrentTCB;
-    --uxSchedulerSuspended;
+
+    // The missed task should be restarted, thus we signal to the context switcher to not preserve
+    // its stack when swaping it out/in
     pxMissedTCB->xNoPreserve = pdTRUE;
 
-    taskEXIT_CRITICAL();
+    // Loop through every resource and release the resource
+    vSRPTCBSemaphoreGive(pxMissedTCB);
+    taskEXIT_CRITICAL_FROM_ISR(0);
 }
+#endif /* configUSE_SCHEDULER_EDF */
 
 BaseType_t xTaskIncrementTick( void )
 {
-TCB_t * pxTCB;
-TickType_t xItemValue;
-BaseType_t xSwitchRequired = pdFALSE;
-TickType_t xSmallestTick = 0xFFFFFFFF;
-#if( configUSE_SRP == 1 )
-uint32_t *vSysCeilPtr;
-#endif /* configUSE_SRP */
+        TCB_t * pxTCB;
+        TickType_t xItemValue;
+        BaseType_t xSwitchRequired = pdFALSE;
+        TickType_t xSmallestTick = 0xFFFFFFFF;
+        #if( configUSE_SRP == 1 )
+            uint32_t *vSysCeilPtr;
+        #endif /* configUSE_SRP */
 
-    #if( configUSE_SCHEDULER_EDF == 1 )
-    {
-        List_t* readyList = &pxReadyTasksLists[pxCurrentTCB->uxPriority];
-        ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
-        ListItem_t const* endMarker = listGET_END_MARKER(readyList);
-
-        BaseType_t xForceReschedule = pdFALSE;
-        while(currentItem != endMarker)
+        #if( configUSE_SCHEDULER_EDF == 1 )
         {
-            TCB_t* currentTCB = listGET_LIST_ITEM_OWNER(currentItem);
-            if (currentTCB->xStateListItem.xItemValue > 0)
+            List_t* readyList = &pxReadyTasksLists[pxCurrentTCB->uxPriority];
+            ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+            ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+
+            while(currentItem != endMarker)
             {
-                currentTCB->xStateListItem.xItemValue--;
-                xSmallestTick = MIN(xSmallestTick, currentTCB->xStateListItem.xItemValue);
+                TCB_t* currentTCB = listGET_LIST_ITEM_OWNER(currentItem);
+                if (currentTCB->xStateListItem.xItemValue > 0)
+                {
+                    currentTCB->xStateListItem.xItemValue--;
+                    xSmallestTick = MIN(xSmallestTick, currentTCB->xStateListItem.xItemValue);
+                }
+                else
+                {
+                    printk("Missed Deadline, will reset processor!\r\n");
+                    RestartMissedTask(currentTCB);
+                    printk("About to force a reschedule!\r\n");
+                    return pdTRUE;
+                }
+                currentItem = listGET_NEXT(currentItem);
             }
-            else
-            {
-                printk("Missed Deadline, will reset processor!\r\n");
-                RestartMissedTask(currentTCB);
-                xForceReschedule = pdTRUE;
-                printk("About to force a reschedule!\r\n");
-                return pdTRUE;
-            }
-            currentItem = listGET_NEXT(currentItem);
         }
-        if(xForceReschedule == pdTRUE)
-            return pdTRUE;
-    }
-    #endif
+        #endif /* configUSE_SCHEDULER_EDF  */
 
 	/* Called by the portable layer each time a tick interrupt occurs.
 	Increments the tick then checks to see if the new tick value will cause any
@@ -2922,9 +2948,10 @@ uint32_t *vSysCeilPtr;
 		/* Minor optimisation.  The tick count cannot change in this
 		block. */
 		const TickType_t xConstTickCount = xTickCount + 1;
-        #if( configUSE_SCHEDULER_EDF == 1 )
-        pxCurrentTCB->xCurrentRunTime++;
-        #endif
+
+                #if( configUSE_SCHEDULER_EDF == 1 )
+                    pxCurrentTCB->xCurrentRunTime++;
+                #endif /* configUSE_SCHEDULER_EDF  */
 
 		/* Increment the RTOS tick, switching the delayed and overflowed
 		delayed lists if it wraps to 0. */
@@ -3017,18 +3044,18 @@ uint32_t *vSysCeilPtr;
 						if( pxTCB->uxPriority >= pxCurrentTCB->uxPriority )
                         #endif
 						{
-                            #if( configUSE_SRP == 1 )
-                            {
-                                vSysCeilPtr = (uint32_t *) srpSysCeilStackPeak();
-                                
-                                if ( vSysCeilPtr == NULL ||
-                                     pxTCB->xPreemptionLevel > *vSysCeilPtr ) {
-                                    xSwitchRequired = pdTRUE;
-                                }
-                            }    
-                            #else
-                                xSwitchRequired = pdTRUE;
-                            #endif /* configUSE_SRP */
+                                                #if( configUSE_SRP == 1 )
+                                                {
+                                                    vSysCeilPtr = (uint32_t *) srpSysCeilStackPeak();
+
+                                                    if ( vSysCeilPtr == NULL ||
+                                                         pxTCB->xPreemptionLevel > *vSysCeilPtr ) {
+                                                        xSwitchRequired = pdTRUE;
+                                                    }
+                                                }    
+                                                #else
+                                                    xSwitchRequired = pdTRUE;
+                                                #endif /* configUSE_SRP */
 						}
 						else
 						{
@@ -3050,12 +3077,12 @@ uint32_t *vSysCeilPtr;
                 #if( configUSE_SRP == 1 )
                 {
                     vSysCeilPtr = (uint32_t *) srpSysCeilStackPeak();
-                                
+
                     if ( vSysCeilPtr == NULL ||
                          pxTCB->xPreemptionLevel > *vSysCeilPtr ) {
                         xSwichRequired = pdTRUE;
                     }
-                }    
+                }
                 #else
                     xSwitchRequired = pdTRUE;
                 #endif /* configUSE_SRP */
@@ -3202,15 +3229,19 @@ uint32_t *vSysCeilPtr;
 #endif /* configUSE_APPLICATION_TASK_TAG */
 /*-----------------------------------------------------------*/
 
+#if( configUSE_SCHEDULER_EDF == 1 )
+/**
+ * @brief Restarts the execution of a given task.
+ **/
 void vRestartTask(TCB_t* tcb)
 {
-    printk("Restarting Task!\r\n");
     StackType_t *pxTopOfStack;
     pxTopOfStack = tcb->pxStack + ( tcb->usStackDepth - ( uint32_t ) 1 );
     pxTopOfStack = ( StackType_t * ) ( ( ( portPOINTER_SIZE_TYPE ) pxTopOfStack ) & ( ~( ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) ) );
     configASSERT( ( ( ( portPOINTER_SIZE_TYPE ) pxTopOfStack & ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) == 0UL ) );
     tcb->pxTopOfStack = pxPortInitialiseStack( pxTopOfStack, tcb->pxTaskCode, tcb->pvParameters );
 }
+#endif  /* configUSE_SCHEDULER_EDF  */
 
 void vTaskSwitchContext( void )
 {
@@ -3252,13 +3283,14 @@ void vTaskSwitchContext( void )
 		}
 		#endif /* configGENERATE_RUN_TIME_STATS */
 
-                // Re Initialize the task
-                if( pxCurrentTCB->xNoPreserve == pdTRUE)
-                {
-                    vRestartTask(pxCurrentTCB);
-                    pxCurrentTCB->xNoPreserve = pdFALSE;
-                }
-
+                #if( configUSE_SCHEDULER_EDF == 1 )
+                    // Re Initialize the task
+                    if( pxCurrentTCB->xNoPreserve == pdTRUE)
+                    {
+                        vRestartTask(pxCurrentTCB);
+                        pxCurrentTCB->xNoPreserve = pdFALSE;
+                    }
+                #endif  /* configUSE_SCHEDULER_EDF  */
 		/* Check for stack overflow, if configured. */
 		taskCHECK_FOR_STACK_OVERFLOW();
 
@@ -5286,27 +5318,27 @@ const TickType_t xConstTickCount = xTickCount;
     #define MAX_RUNTIME_STACK_DEPTH 512 // Number of stack variables that stack can hold
 #endif
 
-BaseType_t srpInitSRPStacks(void) {
+BaseType_t vSRPInitSRP(void) {
     uint32_t xMaxSysCeilStackSize;
     uint32_t xMaxRuntimeStackSize;
     StackType_t *pxTopOfStack;
-        
+
     xMaxSysCeilStackSize = MAX_SYS_CEIL_LEVELS * sizeof( StackType_t );
-    
+
     mSysCeilStack.xStackBottomLimit = (StackType_t *) pvPortMalloc( xMaxSysCeilStackSize );
-    
+
     if ( mSysCeilStack.xStackBottomLimit != NULL ) {
         xMaxRuntimeStackSize = MAX_RUNTIME_STACK_DEPTH * sizeof( StackType_t );
-        
+
         mRuntimeStack.xStackBottomLimit = (StackType_t *) pvPortMalloc( xMaxRuntimeStackSize );
 
         if ( mRuntimeStack.xStackBottomLimit == NULL ) {
             vPortFree( mSysCeilStack.xStackBottomLimit );
             mSysCeilStack.xStackBottomLimit = NULL;
             return pdFALSE;
-        }        
+        }
     }
-    
+
     mSysCeilStack.xStackTopLimit = mSysCeilStack.xStackBottomLimit + xMaxSysCeilStackSize - 1;
     mSysCeilStack.xStackTop = mSysCeilStack.xStackTopLimit + 1;
 
@@ -5325,69 +5357,77 @@ BaseType_t srpInitSRPStacks(void) {
 
     mRuntimeStack.xStackTop = pxTopOfStack;
     configASSERT( ( ( ( portPOINTER_SIZE_TYPE ) pxTopOfStack & ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) == 0UL ) );
-    
+
     /* Push NULL to indicate lowest system ceiling. */
     srpSysCeilStackPush( (StackType_t) NULL );
+
+    vListInitialise(&pxResourceList);
 
     return pdTRUE;
 }
 
-ResourceHandle_t srpSemaphoreCreateBinary(void) {
-    Resource_t *vResource = pvPortMalloc( sizeof( Resource_t ) );
+ResourceHandle_t vSRPSemaphoreCreateBinary(void) {
 
-    if ( vResource != NULL ) {
+    Resource_t *vResource = pvPortMalloc(sizeof(Resource_t));
+    if (vResource != NULL)
+    {
         vResource->xSemaphore = xSemaphoreCreateBinary();
-        
-        if ( vResource->xSemaphore == NULL ) {
-            vPortFree( vResource );
+        if (vResource->xSemaphore == NULL)
+        {
+            vPortFree(vResource);
             vResource = NULL;
         }
-        else {
+        else
+        {
             vResource->xCeilPtr = NULL;
-            xSemaphoreGive( vResource->xSemaphore );
+            xSemaphoreGive(vResource->xSemaphore);
         }
     }
+
+    vResource->pxOwner = NULL;
+
+    vListInitialiseItem(&(vResource->xResourceItem));
+    listSET_LIST_ITEM_OWNER(&(vResource->xResourceItem), vResource);
+    vListInsertEnd(&pxResourceList, &(vResource->xResourceItem));
+
     return (ResourceHandle_t) vResource;
 }
 
+
 /* This function is called from the task level */
-BaseType_t srpSemaphoreTake(ResourceHandle_t vResourceHandle, TickType_t xBlockTime) {
+BaseType_t vSRPSemaphoreTake(ResourceHandle_t vResourceHandle, TickType_t xBlockTime) {
     BaseType_t vVal;
     StackType_t *vTopPtr;
     Resource_t *vResource;
 
     vResource = (Resource_t *) vResourceHandle;
-    
+
     portENTER_CRITICAL();
-
     vTopPtr = (StackType_t *) srpSysCeilStackPeak();
-
     configASSERT( vTopPtr == NULL || pxCurrentTCB->xPreemptionLevel > *vTopPtr );
-    
     srpSysCeilStackPush( (StackType_t) &pxCurrentTCB->xPreemptionLevel );
-    
     portEXIT_CRITICAL();
-    
+
     vVal = xSemaphoreTake( vResource->xSemaphore, xBlockTime );
 
     if ( vVal == pdFALSE ) {
-        portENTER_CRITICAL();        
-        
-        srpSysCeilStackPop();
-
-        portEXIT_CRITICAL();        
+        portENTER_CRITICAL();
+        vSRPSysCeilStackPop();
+        portEXIT_CRITICAL();
     }
+
+    vResource->pxOwner = pxCurrentTCB;
 
     return vVal;
 }
 
 /* This function is called from the task level */
-BaseType_t srpSemaphoreGive(ResourceHandle_t vResourceHandle) {
+BaseType_t vSRPSemaphoreGive(ResourceHandle_t vResourceHandle) {
     BaseType_t vVal;
     Resource_t *vResource;
 
     vResource = (Resource_t *) vResourceHandle;
-    
+
     vVal = xSemaphoreGive( vResource->xSemaphore );
 
     if ( vVal == pdFALSE ) {
@@ -5395,28 +5435,45 @@ BaseType_t srpSemaphoreGive(ResourceHandle_t vResourceHandle) {
     }
 
     portENTER_CRITICAL();
-
-    srpSysCeilStackPop();
-
+    vSRPSysCeilStackPop();
     portEXIT_CRITICAL();
 
+    vResource->pxOwner = NULL;
+
     return pdTRUE;
+}
+
+void vSRPTCBSemaphoreGive(TCB_t* tcb)
+{
+
+    ListItem_t const* xEndMarker = listGET_END_MARKER(&pxResourceList);
+    ListItem_t* xCurrentItem = listGET_HEAD_ENTRY(&pxResourceList);
+    while(xCurrentItem != xEndMarker)
+    {
+        Resource_t* xResource = listGET_LIST_ITEM_OWNER(xCurrentItem);
+        if (xResource->pxOwner == tcb )
+        {
+             BaseType_t pdVal = xSemaphoreGive(xResource->xSemaphore);
+             configASSERT(pdVal == pdTRUE);
+             vSRPSysCeilStackPop();
+        }
+    }
 }
 
 static StackType_t srpSysCeilStackPeak(void) {
     StackType_t vStackVar;
 
     configASSERT(mSysCeilStack.xStackTop != NULL);
-    
+
     vStackVar = *mSysCeilStack.xStackTop;
-    
+
     return vStackVar;
 }
 
-static void srpSysCeilStackPop(void) {
+static void vSRPSysCeilStackPop(void) {
     configASSERT( mSysCeilStack.xStackTop != NULL );
     configASSERT( mSysCeilStack.xStackTop < mSysCeilStack.xStackTopLimit );
-    
+
     mSysCeilStack.xStackTop++;
 }
 

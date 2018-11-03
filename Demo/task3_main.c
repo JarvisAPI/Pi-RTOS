@@ -1,3 +1,4 @@
+#ifdef TASK3_SRP
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -25,7 +26,7 @@ void TimingTestTask2(void *pParam) {
         
         printk("\033[32;1m[Task2]: Running\r\n\033[0m");
         printk("[Task2]: Acquiring resource R1\r\n");
-        vVal = srpSemaphoreTake(mR1, portMAX_DELAY);
+        vVal = vSRPSemaphoreTake(mR1, portMAX_DELAY);
         if ( vVal == pdTRUE ) {
             printk("[Task2]: Obtained resource R1!\r\n");
             printk("[Task2]: Starting counter: %u\r\n", mCounter);
@@ -34,7 +35,7 @@ void TimingTestTask2(void *pParam) {
             }
             printk("[Task2]: Ending counter: %u\r\n", mCounter);
             printk("[Task2]: Releasing resource R1\r\n");
-            vVal = srpSemaphoreGive(mR1);
+            vVal = vSRPSemaphoreGive(mR1);
             printk("[Task2]: Released resource R1!\r\n");            
         }
         else {
@@ -53,7 +54,7 @@ void TimingTestTask3(void *pParam) {
     
         printk("\033[33;1m[Task3]: Running\r\n\033[0m");
         printk("[Task3]: Acquiring resource R1\r\n");
-        vVal = srpSemaphoreTake(mR1, portMAX_DELAY);
+        vVal = vSRPSemaphoreTake(mR1, portMAX_DELAY);
         if ( vVal == pdTRUE ) {
             printk("[Task3]: Obtained resource R1!\r\n");
             printk("[Task3]: Starting counter: %u\r\n", mCounter);
@@ -62,7 +63,7 @@ void TimingTestTask3(void *pParam) {
             }
             printk("[Task3]: Ending counter: %u\r\n", mCounter);
             printk("[Task3]: Releasing resource R1\r\n");
-            vVal = srpSemaphoreGive(mR1);
+            vVal = vSRPSemaphoreGive(mR1);
             printk("[Task3]: Released resource R1!\r\n");            
         }
         else {
@@ -95,7 +96,7 @@ int main(void) {
     const TickType_t xTimingDelay3 = 400 / portTICK_PERIOD_MS;
     
 
-    vVal = srpInitSRPStacks();
+    vVal = vSRPInitSRP();
     if (vVal == pdFALSE) {
         printk("Failed to initialize SRP stacks\r\n");
         while (1) {
@@ -113,7 +114,7 @@ int main(void) {
     xTaskCreate(TimingTestTask2, "TASK_1", 256, NULL, 1, 105, xTimingDelay2, xTimingDelay2, &mTask2);
     xTaskCreate(TimingTestTask3, "TASK_2", 256, NULL, 1, 155, xTimingDelay3, xTimingDelay3, &mTask3);
 
-    mR1 = srpSemaphoreCreateBinary();
+    mR1 = vSRPSemaphoreCreateBinary();
     if (mR1 == NULL) {
         printk("Failed to create resource\r\n");
     }
@@ -135,4 +136,5 @@ int main(void) {
         ;
     }
 }
+#endif
 
