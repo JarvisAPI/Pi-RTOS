@@ -35,3 +35,7 @@ kernel7.list
 kernel7.map
 kernel7.syms
 .#*
+
+
+.DS_Store
+cscope.*

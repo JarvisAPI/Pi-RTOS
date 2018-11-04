@@ -1,4 +1,4 @@
-#ifdef TASK2
+#ifdef TASK2_UN
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -22,7 +22,7 @@ typedef struct TaskInfo_s
 const int iNumTasks = 3;
 TaskInfo_t tasks[] =
 {
-    {1, 900, 3000, 2000, "Task 1", "[32;1m"},
+    {1, 3000, 3000, 2000, "Task 1", "[32;1m"},
     {2, 1900, 7000, 5500, "Task 2", "[33;1m"},
     {3, 1900, 10000, 6000, "Task 3", "[34;1m"}
 };

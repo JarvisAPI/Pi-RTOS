@@ -1,3 +1,4 @@
+#ifdef TASK3_RTS
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -5,18 +6,19 @@
 #include "Drivers/rpi_gpio.h"
 #include "Drivers/rpi_irq.h"
 #include "Drivers/rpi_aux.h"
-#include "info_task3_test.h"
+#include "info_task3_rts.h"
 
 extern TaskInfo_t tasks[];
-static int iNumTasks = 3;
+static int iNumTasks = 100;
 
 void TimingTestTask(void *pParam) {
+    printk("Beginning!!!\r\n");
     while(1) {
         TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;        
-        printk("Start %s\r\n", xTaskInfo->name);
-        busyWait(xTaskInfo->xWCET - 3);
-        printk("Done %s\r\n", xTaskInfo->name);
-        endTaskPeriod();
+        printk("[ %s ] Started at %u\r\n", xTaskInfo->name, xTaskGetTickCount());
+        vBusyWait(xTaskInfo->xWCET - 3);
+        printk("[ %s ] Ended at %u\r\n", xTaskInfo->name, xTaskGetTickCount());
+        vEndTaskPeriod();
     }
 }
 
@@ -32,7 +34,7 @@ int main(void) {
 
     BaseType_t vVal;
 
-    vVal = srpInitSRPStacks();
+    vVal = vSRPInitSRP();
     if (vVal == pdFALSE) {
         printk("Failed to initialize SRP stacks\r\n");
         while (1) {
@@ -43,7 +45,7 @@ int main(void) {
         printk("Successfully initialized SRP stacks\r\n");
     }    
     
-    // Create tasksk
+    // Create tasks
     for (int iTaskNum = 0; iTaskNum < iNumTasks; iTaskNum++)
     {
         xTaskCreate(TimingTestTask, tasks[iTaskNum].name, 0, (void *) &tasks[iTaskNum],
@@ -51,8 +53,8 @@ int main(void) {
                     tasks[iTaskNum].xPeriod, NULL);
     }
 
-    printSchedule();
-    verifyEDFExactBound();
+    vPrintSchedule();
+    vVerifyEDFExactBound();
     //verifyLLBound();
     vTaskStartScheduler();
 
@@ -64,4 +66,4 @@ int main(void) {
         ;
     }
 }
-
+#endif

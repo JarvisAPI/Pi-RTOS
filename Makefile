@@ -8,8 +8,12 @@ GDB = $(TOOLCHAIN)gdb
 
 LIBGCC = $(shell $(CC) -print-libgcc-file-name)
 
-
-SOURCES = Demo/main.c \
+SOURCES = Demo/task3_srp.c \
+          Demo/task3_rts.c \
+          Demo/task3_rts2.c \
+          Demo/task2_main.c \
+          Demo/task2_over.c \
+          Demo/task2_un.c \
           Demo/startup.c \
           Demo/Drivers/rpi_gpio.c \
           Demo/Drivers/rpi_irq.c \
@@ -24,8 +28,8 @@ SOURCES = Demo/main.c \
           Source/portable/GCC/RaspberryPi/portASM.c \
           Source/portable/MemMang/heap_4.c \
           Source/printk.c \
-          Source/assert.c \
           Source/queue.c \
+          Source/assert.c \
           Source/string.c \
 
 OBJECTS = $(patsubst %.c,build/%.o,$(SOURCES))
@@ -34,7 +38,7 @@ INCDIRS = Source/include Source/portable/GCC/RaspberryPi \
           Demo/Drivers Demo/
 
 CFLAGS = -Wall $(addprefix -I ,$(INCDIRS))
-CFLAGS += -D RPI2
+CFLAGS += -D RPI2 -D$(TASK)
 CFLAGS += -march=armv7-a -mtune=cortex-a7 -mfloat-abi=hard -mfpu=neon-vfpv4
 
 ASFLAGS += -march=armv7-a -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard

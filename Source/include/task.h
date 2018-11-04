@@ -102,13 +102,6 @@ extern "C" {
  */
 typedef void * TaskHandle_t;
 
-
-void busyWait( TickType_t ticks );
-void printSchedule(void);
-TickType_t getTime(void);
-void verifyLLBound(void);
-void endTaskPeriod(void);
-
 /*
  * Defines the prototype to which the application task hook function must
  * conform.
@@ -2279,6 +2272,48 @@ eSleepModeStatus eTaskConfirmSleepModeStatus( void ) PRIVILEGED_FUNCTION;
  */
 void *pvTaskIncrementMutexHeldCount( void ) PRIVILEGED_FUNCTION;
 
+#if( configUSE_SCHEDULER_EDF == 1 )
+
+/**
+ * @brief Generate the LL bound for the scheduled task set, compare the utilization and report the
+ *        result.
+ **/
+void vVerifyLLBound(void);
+
+/**
+ * @brief Verify that the scheduled task set is schedulable by carrying our the exact EDF demand
+ *        analysis.
+ * @note This function will assert should the task set be schedulable.
+ **/
+void vVerifyEDFExactBound(void);
+
+/**
+ * @brief Simulate task execution by waiting for a certain number of ticks to elapse while this task
+ *        being executed.
+ * @param ticks The number of ticks to keep the processor busy for.
+ **/
+void vBusyWait(TickType_t ticks);
+
+void vBusyWait2(TickType_t ticks);
+
+/**
+ * @brief Prints the status of the currently scheduled tasks
+ **/
+void vPrintSchedule(void);
+
+/**
+ *  @brief Signals the completion of the current task's execution during this period and places it
+ *         on the wait queue for the next period.
+ **/
+void vEndTaskPeriod(void);
+
+/**
+ * @brief Useful for setting the phase of the task
+ */
+void vEndTask(TickType_t ticks);
+
+#endif /* configUSE_SCHEDULER_EDF */
+
 
 #if( configUSE_SCHEDULER_EDF == 1 && configUSE_SRP == 1 )
 
@@ -2287,25 +2322,25 @@ typedef void * ResourceHandle_t;
 /*
  * Initializes the system ceiling and the runtime stack used for SRP.
  */
-BaseType_t srpInitSRPStacks(void);
+BaseType_t vSRPInitSRP(void);
 
 /*
  * Create binary semaphore, see semphr.h for more details. Called before
  * starting the scheduler.
  */
-ResourceHandle_t srpSemaphoreCreateBinary(void);
+ResourceHandle_t vSRPSemaphoreCreateBinary(void);
 
 /*
  * Take binary semaphore, see semphr.h for more details. As a consequence of acquiring
  * a resource in the SRP protocol, the system ceiling is updated. Called by a task.
  */
-BaseType_t srpSemaphoreTake(ResourceHandle_t vResource, TickType_t xBlockTime);
+BaseType_t vSRPSemaphoreTake(ResourceHandle_t vResource, TickType_t xBlockTime);
 
 /*
  * Give binary semaphore, see semphr.h for more details. As a consequence of releasing
  * a resource in the SRP protocol, the system ceiling is reduced. Called by a task.
  */
-BaseType_t srpSemaphoreGive(ResourceHandle_t vResource);
+BaseType_t vSRPSemaphoreGive(ResourceHandle_t vResource);
 
 /**
  * Inorder for a task to be allowed to use a shared resource protected by a
@@ -2319,8 +2354,6 @@ BaseType_t srpSemaphoreGive(ResourceHandle_t vResource);
 void srpConfigToUseResource(ResourceHandle_t vResouce, TaskHandle_t vTaskHandle);
 
 #endif /* configUSE_SRP */
-
-void verifyEDFExactBound(void);
 
 #ifdef __cplusplus
 }

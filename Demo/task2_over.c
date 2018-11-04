@@ -1,3 +1,4 @@
+#ifdef TASK2_OVER
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -6,10 +7,6 @@
 #include "Drivers/rpi_irq.h"
 #include "Drivers/rpi_aux.h"
 
-const TickType_t xTimingDelay1 = 200 / portTICK_PERIOD_MS;
-const TickType_t xTimingDelay2 = 300 / portTICK_PERIOD_MS;
-const TickType_t xTimingDelay3 = 400 / portTICK_PERIOD_MS;
-
 typedef struct TaskInfo_s
 {
     int iTaskNumber;
@@ -17,43 +14,42 @@ typedef struct TaskInfo_s
     TickType_t xPeriod;
     TickType_t xRelativeDeadline;
     const char* name;
+    const char* color;
 } TaskInfo_t;
-
-
-// Define tasks
-TaskInfo_t edfLStarDemo[] =
-{
-    {1, 900, 3000, 2000, "Task 1"},
-    {2, 1900, 7000, 5500, "Task 2"},
-    {3, 1900, 10000, 6000, "Task 3"}
-};
 
 //Overrun Demo
 TaskInfo_t overrunDemo[] =
 {
-    {1, 1000, 2000, 2000, "Task 1"},
-    {2, 1000, 4000, 4000, "Task 2"},
+    {1, 1000, 2000, 2000, "Task 1", "[32;1m"},
+    {2, 1000, 4000, 4000, "Task 2", "[33;1m"},
 };
 
 const int iNumTasks = 2;
 TaskInfo_t* tasks = overrunDemo;
 
-BaseType_t wow = pdFALSE;
+BaseType_t over = pdFALSE;
 
 void TimingTestTask(void *pParam) {
     while(1) {
-        TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;        
-        printk("Started Task iter at: %u\r\n", xTaskGetTickCount());
-        printk("Start Timing task %d\r\n", xTaskInfo->iTaskNumber);
-        busyWait(xTaskInfo->xWCET);
-        if (wow == pdFALSE)
+        TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
+
+        printk("\033%s[ Task %d ] Started at %u\r\n\033[0m", xTaskInfo->color,
+                                                             xTaskInfo->iTaskNumber,
+                                                             xTaskGetTickCount());
+
+        vBusyWait(xTaskInfo->xWCET);
+
+        if (over == pdFALSE)
         {
-            wow = pdTRUE;
-            busyWait(xTaskInfo->xWCET+10000);
+            over = pdTRUE;
+            vBusyWait(100*xTaskInfo->xWCET);
             printk("THIS SHOULD NEVER PRINT%d\r\n", xTaskInfo->iTaskNumber);
         }
-        printk("Done Timing task %d\r\n", xTaskInfo->iTaskNumber);
-        endTaskPeriod();
+
+        printk("\033%s[ Task %d ] Ended at %u\r\n\033[0m", xTaskInfo->color,
+                                                           xTaskInfo->iTaskNumber,
+                                                           xTaskGetTickCount());
+        vEndTaskPeriod();
     }
 }
 
@@ -64,22 +60,9 @@ void TimingTestTask(void *pParam) {
  *	-- the same prototype as you'd see in a linux program.
  **/
 int main(void) {
-    BaseType_t vVal;
-    
+
     rpi_cpu_irq_disable();
     rpi_aux_mu_init();
-
-    vVal = srpInitSRPStacks();
-    if (vVal == pdFALSE) {
-        printk("Failed to initialize SRP stacks\r\n");
-        while (1) {
-            
-        }
-    }
-    else {
-        printk("Successfully initialized SRP stacks\r\n");
-    }
-    
 
     // Create tasksk
     for (int iTaskNum = 0; iTaskNum < iNumTasks; iTaskNum++)
@@ -89,9 +72,11 @@ int main(void) {
                     tasks[iTaskNum].xPeriod, NULL);
     }
     printk("Finish creating tasks\r\n");
-    printSchedule();
-    verifyEDFExactBound();
-    verifyLLBound();
+
+    vPrintSchedule();
+    vVerifyEDFExactBound();
+    vVerifyLLBound();
+
     vTaskStartScheduler();
 
     /*
@@ -102,4 +87,5 @@ int main(void) {
         ;
     }
 }
+#endif
 
