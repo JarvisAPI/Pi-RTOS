@@ -8,7 +8,7 @@
 #include "info_task3_test.h"
 
 extern TaskInfo_t tasks[];
-static int iNumTasks = 100;
+static int iNumTasks = 3;
 
 void TimingTestTask(void *pParam) {
     while(1) {
@@ -46,7 +46,7 @@ int main(void) {
     // Create tasksk
     for (int iTaskNum = 0; iTaskNum < iNumTasks; iTaskNum++)
     {
-        xTaskCreate(TimingTestTask, tasks[iTaskNum].name, 256, (void *) &tasks[iTaskNum],
+        xTaskCreate(TimingTestTask, tasks[iTaskNum].name, 0, (void *) &tasks[iTaskNum],
                     PRIORITY_EDF, tasks[iTaskNum].xWCET, tasks[iTaskNum].xRelativeDeadline,
                     tasks[iTaskNum].xPeriod, NULL);
     }

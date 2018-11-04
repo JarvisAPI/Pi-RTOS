@@ -697,7 +697,7 @@ PRIVILEGED_DATA Stack_t * volatile pxTempStack = &mTempStack;
 
 /* Pop the current task's run stack off of the runtime stack. */
 static void srpRuntimeStackPopTask(void);
-
+static void srpInitTaskRuntimeStack(TCB_t *vTCB);
 extern StackType_t debugStack(void);
 
 #endif
@@ -3250,11 +3250,15 @@ uint32_t *vSysCeilPtr;
 void vRestartTask(TCB_t* tcb)
 {
     printk("Restarting Task!\r\n");
+#if( configUSE_SHARED_RUNTIME_STACK == 1 )
+    srpInitTaskRuntimeStack(tcb);
+#else /* configUSE_SHARED_RUNTIME_STACK */
     StackType_t *pxTopOfStack;
     pxTopOfStack = tcb->pxStack + ( tcb->usStackDepth - ( uint32_t ) 1 );
     pxTopOfStack = ( StackType_t * ) ( ( ( portPOINTER_SIZE_TYPE ) pxTopOfStack ) & ( ~( ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) ) );
     configASSERT( ( ( ( portPOINTER_SIZE_TYPE ) pxTopOfStack & ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) == 0UL ) );
     tcb->pxTopOfStack = pxPortInitialiseStack( pxTopOfStack, tcb->pxTaskCode, tcb->pvParameters );
+#endif /* configUSE_SHARED_RUNTIME_STACK */
 }
 
 void vTaskSwitchContext( void )
@@ -3270,15 +3274,10 @@ void vTaskSwitchContext( void )
 #if( configUSE_SHARED_RUNTIME_STACK == 1 )
         if ( pxCurrentTCB->pxTaskCode != prvIdleTask && pxCurrentTCB->pxStack != NULL) {
             // Previous task is not completed yet, so use it's stack top
-            // printk("xxx pxCurrentTCB->pxTopOfStack: 0x%x\r\n", pxCurrentTCB->pxTopOfStack);
             mRuntimeStack.xStackTop = (StackType_t *) pxCurrentTCB->pxTopOfStack;            
         }
         // Otherwise previous task is completed and mRuntimeStack.xStackTop would already be
         // the correct value, as set in srpRuntimeStackPopTask()
-        
-        //printk("xxx Task %s\r\n", pxCurrentTCB->pcTaskName);
-        //printk("xxx pxCurrentTCB->pxTopOfStack: 0x%x\r\n", pxCurrentTCB->pxTopOfStack);
-        //printk("xxx *pxCurrentTCB->pxTopOfStack: 0x%x\r\n", *pxCurrentTCB->pxTopOfStack);        
 #endif
 		xYieldPending = pdFALSE;
 		traceTASK_SWITCHED_OUT();
@@ -3334,22 +3333,7 @@ void vTaskSwitchContext( void )
 		#endif /* configUSE_NEWLIB_REENTRANT */
 
 #if( configUSE_SHARED_RUNTIME_STACK == 1 )
-        if ( pxCurrentTCB->pxTaskCode != prvIdleTask ) {
-            //printk("Switching context task: %s\r\n", pxCurrentTCB->pcTaskName);
-            if ( pxCurrentTCB->pxStack == NULL ) {
-                //printk("In here!!!\r\n");
-                
-                printk("mRuntimeStack.xStackTop: 0x%x\r\n", mRuntimeStack.xStackTop);
-                
-                pxCurrentTCB->pxStack = mRuntimeStack.xStackTop;
-
-                printk("stack pointer before: 0x%x\r\n", debugStack());
-                pxCurrentTCB->pxTopOfStack = pxPortInitialiseStack( mRuntimeStack.xStackTop - 1, pxCurrentTCB->pxTaskCode, pxCurrentTCB->pvParameters );
-                printk("config after, pxCurrentTCB->pxTopOfStack: 0x%x\r\n", pxCurrentTCB->pxTopOfStack);
-                //printk("stack pointer after: 0x%x\r\n", debugStack());
-                configASSERT( pxCurrentTCB->pxTopOfStack >= mRuntimeStack.xStackBottomLimit );
-            }
-        }
+        srpInitTaskRuntimeStack( pxCurrentTCB );
 #endif /* configUSE_SHARED_RUNTIME_STACK */
 	}
 }
@@ -5544,22 +5528,26 @@ void srpConfigToUseResource(ResourceHandle_t vResourceHandle, TaskHandle_t vTask
 static void srpRuntimeStackPopTask(void) {
     if( pxCurrentTCB->pxTaskCode != prvIdleTask ) {
         configASSERT( pxCurrentTCB->pxStack != NULL );
-        //printk("pop, mRuntimeStack.xStackTop: 0x%x\r\n", mRuntimeStack.xStackTop);
-        //printk("pop, pxCurrentTCB->pxStack: 0x%x\r\n", pxCurrentTCB->pxStack);
         // Set it back to empty, doesn't matter if other tasks are still running, because
         // if they get preempted then the stack top value will be set to the correct value
         // in vTaskSwitchContext
-        printk("pop, pxCurrentTCB->pxStack: 0x%x\r\n", pxCurrentTCB->pxStack);
         mRuntimeStack.xStackTop = pxCurrentTCB->pxStack;
 
         pxCurrentTCB->pxStack = NULL;
     }
 }
-#endif
 
-void ddebugk(void) {
-    printk("Nothing is WORKING......!!!!!!!!!!!\r\n");
+static void srpInitTaskRuntimeStack(TCB_t * vTCB) {
+    if ( vTCB->pxTaskCode != prvIdleTask ) {
+        if ( vTCB->pxStack == NULL ) {
+            vTCB->pxStack = mRuntimeStack.xStackTop;
+            
+            vTCB->pxTopOfStack = pxPortInitialiseStack( mRuntimeStack.xStackTop - 1, vTCB->pxTaskCode, vTCB->pvParameters );
+            configASSERT( vTCB->pxTopOfStack >= mRuntimeStack.xStackBottomLimit );
+        }
+    }        
 }
+#endif
 
 #endif /* configUSE_SRP */
 

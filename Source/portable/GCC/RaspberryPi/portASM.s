@@ -71,7 +71,6 @@
 	.extern ulPortYieldRequired
 #if configUSE_SHARED_RUNTIME_STACK == 1
     .extern pxTempStack
-    .extern ddebugk
 #endif
     
 	.global FreeRTOS_IRQ_Handler
@@ -346,7 +345,6 @@ ulPortInterruptNestingConst: .word ulPortInterruptNesting
 ulPortYieldRequiredConst: .word ulPortYieldRequired
 #if configUSE_SHARED_RUNTIME_STACK == 1
 pxTempStackConst:    .word pxTempStack
-ddebugkConst:   .word ddebugk
 #endif    
     
 .end
