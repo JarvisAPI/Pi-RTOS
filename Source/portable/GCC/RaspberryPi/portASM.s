@@ -69,11 +69,31 @@
 	.extern ulPortTaskHasFPUContext
 	.extern ulICCEOIR
 	.extern ulPortYieldRequired
-
+#if configUSE_SHARED_RUNTIME_STACK == 1
+    .extern pxTempStack
+    .extern ddebugk
+#endif
+    
 	.global FreeRTOS_IRQ_Handler
 	.global FreeRTOS_SVC_Handler
 	.global vPortRestoreTaskContext
 
+#if configUSE_SHARED_RUNTIME_STACK == 1
+    .macro srpSWITCH_STACK
+    /* Switch to temporary stack */
+    MOV     R0, SP
+    LDR     SP, pxTempStackConst
+    LDR     R1, [SP]
+    LDR     SP, [R1]
+    PUSH    {R0}
+    .endm
+
+    .macro srpRESTORE_STACK
+    POP     {R0}
+    MOV     SP, R0
+    .endm
+#endif
+    
     .macro portSAVE_CONTEXT
     
 	/* Save the LR and SPSR onto the system mode stack before switching to
@@ -170,9 +190,16 @@ FreeRTOS_SVC_Handler:
 	/* Save the context of the current task and select a new task to run. */
 	portSAVE_CONTEXT
     
-SVC_Handler_after_save: 
+SVC_Handler_after_save:
+#if configUSE_SHARED_RUNTIME_STACK == 1
+    srpSWITCH_STACK
+#endif        
 	LDR R0, vTaskSwitchContextConst
 	BLX	R0
+#if configUSE_SHARED_RUNTIME_STACK == 1
+    srpRESTORE_STACK
+#endif    
+    
 	portRESTORE_CONTEXT
 
 
@@ -185,6 +212,15 @@ vPortRestoreTaskContext:
 	/* Switch to system mode. */
 	CPS		#SYS_MODE
 	portRESTORE_CONTEXT
+
+#if configUSE_SHARED_RUNTIME_STACK == 1
+    .global debugStack
+    .align 4
+    .type debugStack, %function
+debugStack:
+    mov r0, sp
+    mov pc, lr
+#endif
 
 .align 4
 .type FreeRTOS_IRQ_Handler, %function
@@ -287,8 +323,14 @@ IRQ_Handler_after_save:
 	vTaskSwitchContext() if vTaskSwitchContext() uses LDRD or STRD
 	instructions, or 8 byte aligned stack allocated data.  LR does not need
 	saving as a new LR will be loaded by portRESTORE_CONTEXT anyway. */
+#if configUSE_SHARED_RUNTIME_STACK == 1
+    srpSWITCH_STACK    
+#endif    
 	LDR		R0, vTaskSwitchContextConst
 	BLX		R0
+#if configUSE_SHARED_RUNTIME_STACK == 1
+    srpRESTORE_STACK
+#endif    
 
 	/* Restore the context of, and branch to, the task selected to execute
 	next. */
@@ -302,7 +344,11 @@ vTaskSwitchContextConst: .word vTaskSwitchContext
 vApplicationIRQHandlerConst: .word vApplicationIRQHandler
 ulPortInterruptNestingConst: .word ulPortInterruptNesting
 ulPortYieldRequiredConst: .word ulPortYieldRequired
-
+#if configUSE_SHARED_RUNTIME_STACK == 1
+pxTempStackConst:    .word pxTempStack
+ddebugkConst:   .word ddebugk
+#endif    
+    
 .end
 
 
