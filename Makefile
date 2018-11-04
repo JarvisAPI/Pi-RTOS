@@ -12,6 +12,7 @@ LIBGCC = $(shell $(CC) -print-libgcc-file-name)
 SOURCES = Demo/task3_main.c \
           Demo/task2_main.c \
           Demo/task2_over.c \
+          Demo/task2_un.c \
           Demo/startup.c \
           Demo/Drivers/rpi_gpio.c \
           Demo/Drivers/rpi_irq.c \

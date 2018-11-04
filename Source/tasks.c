@@ -860,7 +860,8 @@ void vVerifyEDFExactBound(void)
     float fTotalUtilization = getTotalUtilization();
     printk("Total U is: %d\r\n", (int32_t) (fTotalUtilization * 100));
     if( fTotalUtilization > 1 ) {
-        return;
+        printk("Task Set Utilization Over 100%!\r\n");
+        configASSERT( pdFALSE );
     }
 
     float fLStar = getEDFLStart();
