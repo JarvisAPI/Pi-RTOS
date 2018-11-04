@@ -1,4 +1,4 @@
-#ifdef TASK3_SRP
+#ifdef TASK3
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -7,73 +7,72 @@
 #include "Drivers/rpi_irq.h"
 #include "Drivers/rpi_aux.h"
 
-volatile static ResourceHandle_t mR1;
-volatile static uint32_t mCounter;
+volatile static ResourceHandle_t xR1;
+volatile static uint32_t ulCounter;
 
-void TimingTestTask1(void *pParam) {
+
+typedef struct TaskInfo_s
+{
+    int iTaskNumber;
+    TickType_t xWCET;
+    TickType_t xPeriod;
+    TickType_t xRelativeDeadline;
+    const char* name;
+    const char* color;
+    uint32_t ulCount;
+    volatile ResourceHandle_t* pxRes;
+} TaskInfo_t;
+
+// Define tasks
+const int iNumTasks = 3;
+TaskInfo_t tasks[] =
+{
+    {1, 50, 200, 200, "Task 1", "[32;1m", 0, NULL},
+    {2, 100, 300, 300, "Task 2", "[33;1m", 1000, &xR1},
+    {3, 150, 400, 400, "Task 3", "[34;1m", 3000, &xR1},
+};
+
+void TimingTestTask(void *pParam) {
     while(1) {
-        printk("\033[31;1m[Task1]: Running\r\n\033[0m");
-        busyWait( 25 );
-        printk("[Task1]: Finished\r\n");
-        vEndTaskPeriod();                
+        TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
+
+        printk("\033%s[ Task %d ] Started at %u\r\n\033[0m", xTaskInfo->color,
+                                                             xTaskInfo->iTaskNumber,
+                                                             xTaskGetTickCount());
+
+        if (xTaskInfo->pxRes != NULL)
+        {
+
+            BaseType_t vVal = vSRPSemaphoreTake(*(xTaskInfo->pxRes), portMAX_DELAY);
+            configASSERT(vVal == pdTRUE);
+            printk("\033%s[ Task %d ] Obtained Resource\r\n\033[0m", xTaskInfo->color,
+                                                                     xTaskInfo->iTaskNumber);
+            printk("\033%s[ Task %d ] Start Counter: %u\r\n\033[0m", xTaskInfo->color,
+                                                                     xTaskInfo->iTaskNumber,
+                                                                     ulCounter);
+
+            for(uint32_t ulI = 0; ulI < xTaskInfo->ulCount; ulI++)
+                ulCounter++;
+
+            printk("\033%s[ Task %d ] End Counter: %u\r\n\033[0m", xTaskInfo->color,
+                                                                   xTaskInfo->iTaskNumber,
+                                                                   ulCounter);
+            vVal = vSRPSemaphoreGive(*(xTaskInfo->pxRes));
+            configASSERT(vVal == pdTRUE);
+            printk("\033%s[ Task %d ] Released Resource\r\n\033[0m", xTaskInfo->color,
+                                                                     xTaskInfo->iTaskNumber);
+        }
+
+
+        vBusyWait(xTaskInfo->xWCET);
+
+        printk("\033%s[ Task %d ] Ended at %u\r\n\033[0m", xTaskInfo->color,
+                                                           xTaskInfo->iTaskNumber,
+                                                           xTaskGetTickCount());
+        vEndTaskPeriod();
     }
 }
 
-void TimingTestTask2(void *pParam) {    
-    while(1) {
-        BaseType_t vVal;
-        int i;
-        
-        printk("\033[32;1m[Task2]: Running\r\n\033[0m");
-        printk("[Task2]: Acquiring resource R1\r\n");
-        vVal = vSRPSemaphoreTake(mR1, portMAX_DELAY);
-        if ( vVal == pdTRUE ) {
-            printk("[Task2]: Obtained resource R1!\r\n");
-            printk("[Task2]: Starting counter: %u\r\n", mCounter);
-            for (i=0; i<1000; i++) {
-                mCounter++;
-            }
-            printk("[Task2]: Ending counter: %u\r\n", mCounter);
-            printk("[Task2]: Releasing resource R1\r\n");
-            vVal = vSRPSemaphoreGive(mR1);
-            printk("[Task2]: Released resource R1!\r\n");            
-        }
-        else {
-            printk("[Task2]: Failed to obtain resource\r\n");
-        }
-        busyWait( 100 );
-        printk("[Task2]: Finished\r\n");
-        vEndTaskPeriod();        
-    }
-}
-
-void TimingTestTask3(void *pParam) {
-    while(1) {
-        BaseType_t vVal;
-        int i;
-    
-        printk("\033[33;1m[Task3]: Running\r\n\033[0m");
-        printk("[Task3]: Acquiring resource R1\r\n");
-        vVal = vSRPSemaphoreTake(mR1, portMAX_DELAY);
-        if ( vVal == pdTRUE ) {
-            printk("[Task3]: Obtained resource R1!\r\n");
-            printk("[Task3]: Starting counter: %u\r\n", mCounter);
-            for (i=0; i<2000; i++) {
-                mCounter++;
-            }
-            printk("[Task3]: Ending counter: %u\r\n", mCounter);
-            printk("[Task3]: Releasing resource R1\r\n");
-            vVal = vSRPSemaphoreGive(mR1);
-            printk("[Task3]: Released resource R1!\r\n");            
-        }
-        else {
-            printk("[Task3]: Failed to obtain resource\r\n");
-        }
-        busyWait( 150 );
-        printk("[Task3]: Finished\r\n");
-        vEndTaskPeriod();        
-    }
-}
 
 /**
  *	This is the systems main entry, some call it a boot thread.
@@ -85,47 +84,41 @@ int main(void) {
     rpi_cpu_irq_disable();
     rpi_aux_mu_init();
 
-    rpi_gpio_sel_fun(47, 1);			// RDY led
-    rpi_gpio_sel_fun(35, 1);			// RDY led
-
-    TaskHandle_t mTask2, mTask3;
     BaseType_t vVal;
-
-    const TickType_t xTimingDelay1 = 200 / portTICK_PERIOD_MS;
-    const TickType_t xTimingDelay2 = 300 / portTICK_PERIOD_MS;
-    const TickType_t xTimingDelay3 = 400 / portTICK_PERIOD_MS;
-    
 
     vVal = vSRPInitSRP();
     if (vVal == pdFALSE) {
         printk("Failed to initialize SRP stacks\r\n");
-        while (1) {
-            
-        }
+        configASSERT(pdFALSE);
     }
     else {
         printk("Successfully initialized SRP stacks\r\n");
     }
-    
-    mCounter = 0;
 
-    
-    xTaskCreate(TimingTestTask1, "TASK_0", 256, NULL, 1, 30, xTimingDelay1, xTimingDelay1, NULL);
-    xTaskCreate(TimingTestTask2, "TASK_1", 256, NULL, 1, 105, xTimingDelay2, xTimingDelay2, &mTask2);
-    xTaskCreate(TimingTestTask3, "TASK_2", 256, NULL, 1, 155, xTimingDelay3, xTimingDelay3, &mTask3);
 
-    mR1 = vSRPSemaphoreCreateBinary();
-    if (mR1 == NULL) {
+    ulCounter = 0;
+
+    TaskHandle_t pxTaskHandles[iNumTasks];
+    // Create tasks
+    for (int iTaskNum = 0; iTaskNum < iNumTasks; iTaskNum++)
+    {
+        xTaskCreate(TimingTestTask, tasks[iTaskNum].name, 256, (void *) &tasks[iTaskNum],
+                    PRIORITY_EDF, tasks[iTaskNum].xWCET, tasks[iTaskNum].xRelativeDeadline,
+                    tasks[iTaskNum].xPeriod, &pxTaskHandles[iTaskNum]);
+    }
+
+    xR1 = vSRPSemaphoreCreateBinary();
+    if (xR1 == NULL) {
         printk("Failed to create resource\r\n");
     }
     else {
         printk("Resource created successfully\r\n");
     }
-    
-    srpConfigToUseResource(mR1, mTask2);
-    srpConfigToUseResource(mR1, mTask3);
 
-    printSchedule();
+    srpConfigToUseResource(xR1, pxTaskHandles[1]);
+    srpConfigToUseResource(xR1, pxTaskHandles[2]);
+
+    vPrintSchedule();
     vTaskStartScheduler();
 
     /*
