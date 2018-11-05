@@ -1010,6 +1010,7 @@ void verifyEDFExactBound3(void)
             //get task pointer
             TCB_t* tcb2 = listGET_LIST_ITEM_OWNER( currentItem2 );
             sum += tcb2->xWCET / tcb2->xPeriod;
+            currentItem2 = listGET_NEXT( currentItem2 );
         }
         if ( sum > 1 ) {
             prink("fail\r\n");
@@ -1018,6 +1019,7 @@ void verifyEDFExactBound3(void)
             printk("pass\r\n");
             while(1);
         }
+        currentItem = listGET_NEXT( currentItem );
     }
 }
 
