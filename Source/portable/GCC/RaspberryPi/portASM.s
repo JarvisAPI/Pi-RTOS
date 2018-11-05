@@ -54,8 +54,8 @@
 	.text
 	.arm
 
-//    .set configUSE_SHARED_RUNTIME_STACK, 0
-    .set configUSE_SHARED_RUNTIME_STACK, 1
+    .set configUSE_SHARED_RUNTIME_STACK, 0
+//    .set configUSE_SHARED_RUNTIME_STACK, 1
 
 	.set SYS_MODE,	0x1f
 	.set SVC_MODE,	0x13

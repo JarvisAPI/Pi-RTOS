@@ -12,7 +12,6 @@ extern TaskInfo_t tasks[];
 static int iNumTasks = 100;
 
 void TimingTestTask(void *pParam) {
-    printk("Beginning!!!\r\n");
     while(1) {
         TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;        
         printk("[ %s ] Started at %u\r\n", xTaskInfo->name, xTaskGetTickCount());
