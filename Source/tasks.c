@@ -930,6 +930,7 @@ void vVerifyEDFExactBound(void)
 
 }
 
+#if ( configUSE_SRP == 1 )
 /**
  * @brief Verify that the scheduled task set is schedulable by carrying out exact EDF demand
  *        analysis.
@@ -1024,6 +1025,7 @@ void verifyEDFExactBound3(void)
         currentItem = listGET_NEXT( currentItem );
     }
 }
+#endif /*  configUSE_SRP == 1 */
 
 /**
  *  @brief Signals the completion of the current task's execution during this period and places it
@@ -1158,7 +1160,9 @@ void vEndTask(TickType_t ticks) {
                             pxNewTCB->usStackDepth = usStackDepth;
                             pxNewTCB->xNoPreserve = pdFALSE;
                             pxNewTCB->pvParameters = pvParameters;
-                            pxNewTCB->xBlockTime = 0;
+                            #if ( configUSE_SRP == 1 )
+                                pxNewTCB->xBlockTime = 0;
+                            #endif /* configUSE_SRP */
                         }
                         #endif /* configUSE_SCHEDULER_EDF */
                         #if( configUSE_SRP == 1 )

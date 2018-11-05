@@ -140,9 +140,9 @@ NVIC value of 255. */
 #define configUSE_SCHEDULER_EDF 1
 
 /* Choose the resource sharing protocol */
-#define configUSE_SRP 1
+#define configUSE_SRP 0
 /* If runtime stack is enabled then it must also be enabled in portASM.s */
-#define configUSE_SHARED_RUNTIME_STACK 1
+#define configUSE_SHARED_RUNTIME_STACK 0
 
 #endif /* FREERTOS_CONFIG_H */
 
