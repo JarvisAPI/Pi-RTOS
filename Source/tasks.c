@@ -929,6 +929,99 @@ void vVerifyEDFExactBound(void)
 }
 
 /**
+ * @brief Verify that the scheduled task set is schedulable by carrying out exact EDF demand
+ *        analysis.
+ * @note This function will assert should the task set be schedulable.
+ **/
+void verifyEDFExactBound2(void)
+{
+    // TODO: Ensure that the scheduler is not running
+    float fTotalUtilization = getTotalUtilization();
+    printk("Total U is: %d\r\n", (int32_t) (fTotalUtilization * 100));
+    if( fTotalUtilization > 1 ) {
+        return;
+    }
+    
+    float fLStar = getEDFLStart();
+    printk("L* is: %d\r\n", ((int32_t) fLStar));
+    
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
+    //check all absolute deadlines by iterating through all periods of each task
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+    while( currentItem != endMarker )
+    {
+        //get task pointer
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        
+        //verify that demand at time L is less than L, where L is equal to
+        //the task's absolute deadlines up to lStar
+        for( TickType_t L = tcb->xRelativeDeadline; L <= fLStar; L += tcb->xPeriod )
+        {
+            float totalDemand = 0;
+            //find total demand at time L by summing the demand of each task
+            ListItem_t* currentItem2 = listGET_HEAD_ENTRY(readyList);
+            ListItem_t const* endMarker2 = listGET_END_MARKER(readyList);
+            while( currentItem2 != endMarker2 )
+            {
+                TCB_t* tcb2 = listGET_LIST_ITEM_OWNER( currentItem2 );
+                int temp = ( L + tcb2->xPeriod - tcb2->xRelativeDeadline ) / tcb2->xPeriod;
+                totalDemand += temp * tcb2->xWCET;
+                currentItem2 = listGET_NEXT( currentItem2 );
+            }
+            //ADDED BLOCKING TIME TO DEMAND
+            if(( totalDemand + tcb->xBlockTime ) > L ) {
+                printk( "Fail at L = %d, total demand = %d\r\n", (int32_t) L, (int32_t) totalDemand);
+                while(1);
+                return ;
+            }
+            printk( "Success at L = %d, total demand = %d\r\n", (int32_t) L, (int32_t) totalDemand);
+        }
+        
+        currentItem = listGET_NEXT( currentItem );
+    }
+    printk("Task set has passed exact deadline analysis!\r\n");
+    return;
+    
+}
+
+
+/**
+ * @brief Verify that the scheduled task set is schedulable by carrying out blocking time analysis for SRP.
+ * @note This function will assert should the task set be schedulable.
+ **/
+void verifyEDFExactBound3(void)
+{
+    //EQUATION FROM PAGE 50, DOESNT SEEM TO TAKE INTO ACCOUNT WHEN DEADLINE DIFFERENT FROM PERIOD
+    List_t* readyList = &pxReadyTasksLists[PRIORITY_EDF];
+    //check all absolute deadlines by iterating through all periods of each task
+    ListItem_t const* endMarker = listGET_END_MARKER(readyList);
+    ListItem_t* currentItem = listGET_HEAD_ENTRY(readyList);
+    while( currentItem != endMarker )
+    {
+        //get task pointer
+        TCB_t* tcb = listGET_LIST_ITEM_OWNER( currentItem );
+        float sum = ( tcb->xBlockTime / tcb->xPeriod );
+        // ^^^^^^^^^^^^^^^NEEDS CHANGED PROB
+        
+        ListItem_t* currentItem2 = listGET_HEAD_ENTRY(readyList);
+        while( currentItem2 != currentItem )
+        {
+            //get task pointer
+            TCB_t* tcb2 = listGET_LIST_ITEM_OWNER( currentItem2 );
+            sum += tcb2->xWCET / tcb2->xPeriod;
+        }
+        if ( sum > 1 ) {
+            prink("fail\r\n");
+            while(1);
+        } else {
+            printk("pass\r\n");
+            while(1);
+        }
+    }
+}
+
+/**
  *  @brief Signals the completion of the current task's execution during this period and places it
  *         on the wait queue for the next period.
  **/
