@@ -400,6 +400,8 @@ typedef struct tskTaskControlBlock
 
    #if( configUSE_SRP == 1 )
     StackType_t xPreemptionLevel;
+    // Longest time that task can be blocked by a lower priority task, used for admission control
+    TickType_t xBlockTime; 
     BaseType_t xBlocked;
     #endif
 
@@ -1013,7 +1015,7 @@ void verifyEDFExactBound3(void)
             currentItem2 = listGET_NEXT( currentItem2 );
         }
         if ( sum > 1 ) {
-            prink("fail\r\n");
+            printk("fail\r\n");
             while(1);
         } else {
             printk("pass\r\n");
@@ -1156,6 +1158,7 @@ void vEndTask(TickType_t ticks) {
                             pxNewTCB->usStackDepth = usStackDepth;
                             pxNewTCB->xNoPreserve = pdFALSE;
                             pxNewTCB->pvParameters = pvParameters;
+                            pxNewTCB->xBlockTime = 0;
                         }
                         #endif /* configUSE_SCHEDULER_EDF */
                         #if( configUSE_SRP == 1 )
@@ -5688,6 +5691,12 @@ void vSRPTCBSemaphoreGive(TCB_t* tcb)
              vSRPSysCeilStackPop();
         }
     }
+}
+
+void srpSetTaskBlockTime(TaskHandle_t xTaskHandle, TickType_t xBlockTime) {
+    TCB_t *pxTCB;
+    pxTCB = (TCB_t *) xTaskHandle;
+    pxTCB->xBlockTime = xBlockTime;
 }
 
 static StackType_t srpSysCeilStackPeak(void) {

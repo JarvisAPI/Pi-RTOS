@@ -2353,6 +2353,15 @@ BaseType_t vSRPSemaphoreGive(ResourceHandle_t vResource);
  */
 void srpConfigToUseResource(ResourceHandle_t vResouce, TaskHandle_t vTaskHandle);
 
+/**
+ * Set the longest time that task can be blocked by a lower priority task.
+ *
+ * @param xTaskHandle handle to the task to be set.
+ *
+ * @param xBlockTime the longest time that task can be blocked for.
+ */
+void srpSetTaskBlockTime(TaskHandle_t xTaskHandle, TickType_t xBlockTime);
+
 #endif /* configUSE_SRP */
 
 #ifdef __cplusplus
