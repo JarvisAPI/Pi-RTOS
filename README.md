@@ -25,7 +25,7 @@ completing early. CASH is an approach that addresses this limitation. Read the a
 
 
 # [Task 3] Supporting Multiprocessor Real-time Scheduling in FreeRTOS
- In this part you will implement both partitioned and global EDF in FreeRTOS running on RPi. You will be considering only _implicit-deadline_ periodic tasks, where $`D_i`$ for every task $`i`$. The different multiprocessor scheduling approaches (partitioned vs. global) pose different classes of challenges, both theoretically and implementation-wise, and the goal of this part is to learn the algorithmic complexities of multiprocessor scheduling, as well as gain an understanding and appreciation of the practical issues and 
+ In this part you will implement both partitioned and global EDF in FreeRTOS running on RPi. You will be considering only _implicit-deadline_ periodic tasks, where $`D_i = P_i`$ for every task $`i`$. The different multiprocessor scheduling approaches (partitioned vs. global) pose different classes of challenges, both theoretically and implementation-wise, and the goal of this part is to learn the algorithmic complexities of multiprocessor scheduling, as well as gain an understanding and appreciation of the practical issues and 
  challenges related to supporting multiprocessor execution and scheduling.
 
 
