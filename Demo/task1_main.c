@@ -1,4 +1,4 @@
-#ifdef TASK2_UN
+#ifdef TASK2
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -19,13 +19,40 @@ typedef struct TaskInfo_s
 
 
 // Define tasks
-const int iNumTasks = 3;
+const int iNumTasks = 1;
 TaskInfo_t tasks[] =
 {
-    {1, 3000, 3000, 2000, "Task 1", "[32;1m"},
-    {2, 1900, 7000, 5500, "Task 2", "[33;1m"},
-    {3, 1900, 10000, 6000, "Task 3", "[34;1m"}
+    {1, 900, 4000, 7000, "Task 1", "[32;1m"},
 };
+
+const int iNumAsyncs = 2;
+TaskInfo_t asyncs[] = 
+{
+    {1, 100, 4000, 4000, "ASYNC 1", "[32;2m"},
+    {2, 900, 11000, 11000, "ASYNC 2", "[32;2m"},
+};
+
+typedef void (*vCB_t(int, void(*)(int)))(int);
+
+// TODO Setup job fifo
+vCB_t* pvAperiodicRequests[1];
+int iNumAperiodicRequests = 0;
+
+// Task never delays itself, always syspends itself
+TaskHandle_t server;
+//TODO Have a FIFI of tasks
+void CBSServer(void* pParam)
+{
+    printk("SERVER STARTED\r\n");
+    while(1)
+    {
+        vBusyWait(100);
+        printk("SERVER WAS HERE\r\n");
+        // The server is idle sleep untill we get something
+        vTaskSuspend(NULL);
+    }
+}
+
 
 
 void TimingTestTask(void *pParam) {
@@ -45,6 +72,19 @@ void TimingTestTask(void *pParam) {
     }
 }
 
+
+void AsyncTestTask(void *pParam)
+{
+        TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
+        vEndTaskPeriod();
+
+        printk("\033%s[ Async Task %d ] at %u\r\n\033[0m", xTaskInfo->color,
+                                                           xTaskInfo->iTaskNumber,
+                                                           xTaskGetTickCount());
+        vServerCBSNotify(server);
+        vTaskDelete( NULL );
+}
+
 /**
  *	This is the systems main entry, some call it a boot thread.
  *
@@ -62,9 +102,18 @@ int main(void) {
                     PRIORITY_EDF, tasks[iTaskNum].xWCET, tasks[iTaskNum].xRelativeDeadline,
                     tasks[iTaskNum].xPeriod, NULL);
     }
+    
+    // Create ASYNCS
+    for (int iTaskNum = 0; iTaskNum < iNumAsyncs; iTaskNum++)
+    {
+        xTaskCreate(AsyncTestTask, asyncs[iTaskNum].name, 256, (void *) &asyncs[iTaskNum],
+                    2, asyncs[iTaskNum].xWCET, asyncs[iTaskNum].xRelativeDeadline,
+                    asyncs[iTaskNum].xPeriod, NULL);
+    }
 
+    // Create the server:
+    xServerCBSCreate(CBSServer, "CBS Server", 256, NULL, PRIORITY_EDF, 2000, 3000, &server);
     vPrintSchedule();
-    vVerifyEDFExactBound();
     vVerifyLLBound();
 
     vTaskStartScheduler();

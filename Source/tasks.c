@@ -396,6 +396,10 @@ typedef struct tskTaskControlBlock
             uint32_t usStackDepth;
             void*  pvParameters;
             BaseType_t xNoPreserve;
+            float fUtilization;
+            #if( configUSE_CBS_SERVER == 1 )
+                BaseType_t xIsServer;
+            #endif
         #endif
 
    #if( configUSE_SRP == 1 )
@@ -471,6 +475,8 @@ PRIVILEGED_DATA static volatile UBaseType_t uxSchedulerSuspended	= ( UBaseType_t
 #endif
 
 /*lint +e956 */
+
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 /**
  * @brief Simulate task execution by waiting for a certain number of ticks to elapse while this task
@@ -674,6 +680,13 @@ static void prvInitialiseNewTask( 	TaskFunction_t pxTaskCode,
  * under the control of the scheduler.
  */
 static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
+
+
+#if( configUSE_SCHEDULER_EDF == 1  && configUSE_CBS_SERVER == 1)
+void vServerCBSReplenish( TCB_t* pxServerTCB );
+void vServerCBSRefresh( TCB_t* pxServerTCB );
+#endif
+
 
 #if( configUSE_SRP == 1 )
 typedef struct Resource_s
@@ -1163,6 +1176,10 @@ void vEndTask(TickType_t ticks) {
                             #if ( configUSE_SRP == 1 )
                                 pxNewTCB->xBlockTime = 0;
                             #endif /* configUSE_SRP */
+                            #if ( configUSE_CBS_SERVER == 1 )
+                                pxNewTCB->xIsServer = pdFALSE;
+                            #endif
+                            pxNewTCB->fUtilization = ( xWCET / ( MIN( xPeriod, xRelativeDeadline ) ) );
                         }
                         #endif /* configUSE_SCHEDULER_EDF */
                         #if( configUSE_SRP == 1 )
@@ -2257,6 +2274,7 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB )
 					( void ) uxListRemove(  &( pxTCB->xStateListItem ) );
 					prvAddTaskToReadyList( pxTCB );
 
+                                        printk( "Server deadline is: %u\r\n", pxTCB->xStateListItem.xItemValue);
 					/* We may have just resumed a higher priority task. */
 					if( pxTCB->uxPriority >= pxCurrentTCB->uxPriority )
 					{
@@ -3036,7 +3054,6 @@ implementations require configUSE_TICKLESS_IDLE to be set to a value other than
 /*----------------------------------------------------------*/
 
 #if ( configUSE_SCHEDULER_EDF == 1 )
-#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 void RestartMissedTask(TCB_t* pxMissedTCB)
 {
@@ -3136,6 +3153,14 @@ BaseType_t xTaskIncrementTick( void )
 
                 #if( configUSE_SCHEDULER_EDF == 1 )
                     pxCurrentTCB->xCurrentRunTime++;
+                    #if( configUSE_CBS_SERVER == 1 )
+                    if ( ( pxCurrentTCB->xIsServer == pdTRUE ) &&
+                         ( pxCurrentTCB->xCurrentRunTime == pxCurrentTCB->xWCET ) )
+                    {
+                         vServerCBSReplenish( pxCurrentTCB );
+                         vServerCBSRefresh( pxCurrentTCB );
+                    }
+                    #endif /* configUSE_CBS_SERVER */
                 #endif /* configUSE_SCHEDULER_EDF  */
 
 		/* Increment the RTOS tick, switching the delayed and overflowed
@@ -5773,6 +5798,77 @@ static void srpInitTaskRuntimeStack(TCB_t * vTCB) {
 
 #endif /* configUSE_SRP */
 
+#if( configUSE_SCHEDULER_EDF == 1  && configUSE_CBS_SERVER == 1)
+BaseType_t xServerCBSCreate( TaskFunction_t pxTaskCode,
+                              const char * const pcName,
+                              const uint16_t usStackDepth,
+                              void * const pvParameters,
+                              UBaseType_t uxPriority,
+                              TickType_t xBudget,
+                              TickType_t xPeriod,
+                              TaskHandle_t * const pxCreatedTask )
+{
+    TCB_t* pxNewServerTCB = NULL; 
+    BaseType_t pdResult = xTaskCreate( pxTaskCode, pcName, usStackDepth, pvParameters, uxPriority,
+                                       xBudget, 0, xPeriod, (TaskHandle_t*) &pxNewServerTCB );
+    configASSERT( pdResult == pdTRUE );
+
+    pxNewServerTCB->xIsServer = pdTRUE;
+    pxNewServerTCB->fUtilization = ( pxNewServerTCB->xWCET / pxNewServerTCB->xPeriod );
+
+    *pxCreatedTask = ( TaskHandle_t ) pxNewServerTCB;
+
+    vTaskSuspend( pxNewServerTCB );
+
+    return pdResult;
+}
+
+
+void vServerCBSReplenish( TCB_t* pxServerTCB )
+{
+    pxServerTCB->xCurrentRunTime = 0;
+    pxServerTCB->xStateListItem.xItemValue += pxServerTCB->xPeriod;
+    pxServerTCB->xRelativeDeadline = pxServerTCB->xStateListItem.xItemValue;
+    printk( "Server deadline is: %u\r\n", pxServerTCB->xStateListItem.xItemValue);
+}
+
+void vServerCBSRefresh( TCB_t* pxServerTCB )
+{
+    if ( !listIS_CONTAINED_WITHIN( &pxReadyTasksLists[PRIORITY_EDF], &pxServerTCB->xStateListItem ) )
+        return;
+
+    uxListRemove( &pxServerTCB->xStateListItem );
+    prvAddTaskToReadyList( pxServerTCB );
+}
+
+TickType_t xServerCBSGetCurrentCapacity( TaskHandle_t pxServer )
+{
+    TCB_t* pxServerTCB = ( TCB_t * ) pxServer;
+    configASSERT( pxServerTCB->xIsServer == pdTRUE );
+    return pxServerTCB->xWCET - pxServerTCB->xCurrentRunTime;
+}
+
+void vServerCBSNotify( TaskHandle_t pxServer )
+{
+    TCB_t* pxServerTCB = ( TCB_t * ) pxServer;
+    // If the server is already active. i.e. servicing a request. Do nothing.
+    if ( listIS_CONTAINED_WITHIN( &pxReadyTasksLists[PRIORITY_EDF], &pxServerTCB->xStateListItem ) )
+        return;
+
+    // If the server is idle and we dont have enough capacity then increase the deadline and
+    // replenish else do nothing.
+    TickType_t xRemainingCapacity = pxServerTCB->xWCET - pxServerTCB->xCurrentRunTime;
+    if ( ( xTaskGetTickCount() + ( ( ( ( float ) xRemainingCapacity ) / pxServerTCB->xWCET) * pxServerTCB->xPeriod ) )  >=
+         pxServerTCB->xStateListItem.xItemValue )
+    {
+        pxServerTCB->xStateListItem.xItemValue = 0;
+        vServerCBSReplenish( pxServerTCB );
+    }
+
+    vTaskResume( pxServerTCB );
+}
+
+#endif
 
 
 #ifdef FREERTOS_MODULE_TEST

@@ -141,8 +141,11 @@ NVIC value of 255. */
 
 /* Choose the resource sharing protocol */
 #define configUSE_SRP 0
+
 /* If runtime stack is enabled then it must also be enabled in portASM.s */
 #define configUSE_SHARED_RUNTIME_STACK 0
+
+#define configUSE_CBS_SERVER 1
 
 #endif /* FREERTOS_CONFIG_H */
 

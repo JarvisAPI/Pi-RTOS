@@ -2315,6 +2315,21 @@ void vEndTask(TickType_t ticks);
 #endif /* configUSE_SCHEDULER_EDF */
 
 
+#if( configUSE_SCHEDULER_EDF == 1  && configUSE_CBS_SERVER == 1)
+BaseType_t xServerCBSCreate( TaskFunction_t pxTaskCode,
+                             const char * const pcName,
+                             const uint16_t usStackDepth,
+                             void * const pvParameters,
+                             UBaseType_t uxPriority,
+                             TickType_t xWCET,
+                             TickType_t xPeriod,
+                             TaskHandle_t * const pxCreatedTask ) PRIVILEGED_FUNCTION;
+
+
+void vServerCBSNotify( TaskHandle_t pxServer );
+#endif
+
+
 #if( configUSE_SCHEDULER_EDF == 1 && configUSE_SRP == 1 )
 
 typedef void * ResourceHandle_t;
