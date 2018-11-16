@@ -85,7 +85,7 @@ task.h is included from an application file. */
 #include "printk.h"
 
 
-#if( configUSE_SRP == 1 )
+#if( configUSE_SRP == 1 || configUSE_CBS_SERVER )
 #include <semphr.h>
 #endif
 
@@ -399,6 +399,7 @@ typedef struct tskTaskControlBlock
             float fUtilization;
             #if( configUSE_CBS_SERVER == 1 )
                 BaseType_t xIsServer;
+                BaseType_t pxJobQueue;
             #endif
         #endif
 
@@ -431,6 +432,18 @@ PRIVILEGED_DATA static List_t xPendingReadyList;						/*< Tasks that have been r
 #if ( configUSE_SRP == 1 )
     PRIVILEGED_DATA static List_t pxResourceList;/*< Prioritised ready tasks. */
 #endif /* configUSE_SRP */
+
+#if ( configUSE_CBS_CASH == 1 )
+typedef struct CASHItem_s {
+    TickType_t xBudget;
+    TickType_t xDeadline;
+} CASHItem_t;
+
+#define CASH_QUEUE_SIZE 16
+uint32_t xCASHQueueSize = 0;
+/* xCASHQueue is sorted in ascending order in terms of xDeadline. */
+PRIVILEGED_DATA static CASHItem_t xCASHQueue[CASH_QUEUE_SIZE];
+#endif /* configCBS_CASH */
 
 #if( INCLUDE_vTaskDelete == 1 )
 
@@ -683,6 +696,29 @@ static void prvAddNewTaskToReadyList( TCB_t *pxNewTCB ) PRIVILEGED_FUNCTION;
 
 
 #if( configUSE_SCHEDULER_EDF == 1  && configUSE_CBS_SERVER == 1)
+    
+typedef struct JobItem_s {
+    TaskFunction_t pxJobCode;
+    void * pvParameters;
+} JobItem_t;
+
+#define SERVER_JOB_QUEUE_SIZE 16
+typedef struct JobQueue_s {
+    JobItem_t *pxJobItems;
+    size_t sHead;
+    size_t sSize;
+    size_t sMaxSize;
+} JobQueue_t;
+
+
+/**
+ * Place a job onto the server's job queue
+ * @param pxServer handle to the server task
+ * @param pxJobCode address to the code for the job
+ * @param pvParameters parameters to pass in when executing the job
+ * @return pdTRUE if job is successfully queued, pdFALSE otherwise
+ */
+static BaseType_t vServerCBSQueueJob( TCB_t *pxServerTCB, TaskFunction_t pxJobCode, void * pvParameters );
 void vServerCBSReplenish( TCB_t* pxServerTCB );
 void vServerCBSRefresh( TCB_t* pxServerTCB );
 #endif
@@ -1178,6 +1214,7 @@ void vEndTask(TickType_t ticks) {
                             #endif /* configUSE_SRP */
                             #if ( configUSE_CBS_SERVER == 1 )
                                 pxNewTCB->xIsServer = pdFALSE;
+                                pxNewTCB->pxJobQueue = (BaseType_t) NULL;
                             #endif
                             pxNewTCB->fUtilization = ( xWCET / ( MIN( xPeriod, xRelativeDeadline ) ) );
                         }
@@ -5808,16 +5845,37 @@ BaseType_t xServerCBSCreate( TaskFunction_t pxTaskCode,
                               TickType_t xPeriod,
                               TaskHandle_t * const pxCreatedTask )
 {
-    TCB_t* pxNewServerTCB = NULL; 
+    TCB_t* pxNewServerTCB = NULL;
+    JobQueue_t* pxJobQueue = NULL;
+
+    pxJobQueue  = (JobQueue_t *) pvPortMalloc( sizeof( JobQueue_t ) );
+    
+    if (pxJobQueue == NULL) {
+        return pdFALSE;
+    };
+
+    pxJobQueue->pxJobItems = (JobItem_t *) pvPortMalloc( sizeof( JobItem_t ) * SERVER_JOB_QUEUE_SIZE );
+
+    if (pxJobQueue->pxJobItems == NULL) {
+        vPortFree(pxJobQueue);
+        return pdFALSE;
+    }
+
+    pxJobQueue->sMaxSize = SERVER_JOB_QUEUE_SIZE;
+    pxJobQueue->sHead = 0;
+    pxJobQueue->sSize = 0;
+    
     BaseType_t pdResult = xTaskCreate( pxTaskCode, pcName, usStackDepth, pvParameters, uxPriority,
                                        xBudget, 0, xPeriod, (TaskHandle_t*) &pxNewServerTCB );
     configASSERT( pdResult == pdTRUE );
 
+    pxNewServerTCB->pxJobQueue = (BaseType_t) pxJobQueue;
+   
     pxNewServerTCB->xIsServer = pdTRUE;
     pxNewServerTCB->fUtilization = ( pxNewServerTCB->xWCET / pxNewServerTCB->xPeriod );
-
+    
     *pxCreatedTask = ( TaskHandle_t ) pxNewServerTCB;
-
+    
     vTaskSuspend( pxNewServerTCB );
 
     return pdResult;
@@ -5848,15 +5906,19 @@ TickType_t xServerCBSGetCurrentCapacity( TaskHandle_t pxServer )
     return pxServerTCB->xWCET - pxServerTCB->xCurrentRunTime;
 }
 
-void vServerCBSNotify( TaskHandle_t pxServer )
+void vServerCBSNotify( TaskHandle_t pxServer, TaskFunction_t pxJobCode, void * pvParameters)
 {
+    taskDISABLE_INTERRUPTS();
+    
     TCB_t* pxServerTCB = ( TCB_t * ) pxServer;
+    
     // If the server is already active. i.e. servicing a request. Do nothing.
     if ( listIS_CONTAINED_WITHIN( &pxReadyTasksLists[PRIORITY_EDF], &pxServerTCB->xStateListItem ) )
         return;
 
     // If the server is idle and we dont have enough capacity then increase the deadline and
     // replenish else do nothing.
+    // TODO: Handle tick count overflows
     TickType_t xRemainingCapacity = pxServerTCB->xWCET - pxServerTCB->xCurrentRunTime;
     if ( ( xTaskGetTickCount() + ( ( ( ( float ) xRemainingCapacity ) / pxServerTCB->xWCET) * pxServerTCB->xPeriod ) )  >=
          pxServerTCB->xStateListItem.xItemValue )
@@ -5865,8 +5927,120 @@ void vServerCBSNotify( TaskHandle_t pxServer )
         vServerCBSReplenish( pxServerTCB );
     }
 
+    vServerCBSQueueJob(pxServerTCB, pxJobCode, pvParameters);    
     vTaskResume( pxServerTCB );
+
+    taskENABLE_INTERRUPTS();    
 }
+
+static BaseType_t vServerCBSQueueJob( TCB_t *pxServerTCB, TaskFunction_t pxJobCode, void * pvParameters ) {
+    JobQueue_t *pxJobQueue = (JobQueue_t *) pxServerTCB->pxJobQueue;
+
+    if (pxJobQueue->sSize == pxJobQueue->sMaxSize) {
+        printk("Server Job Queue is full, Server Name: %s, not registering job\r\n", pxServerTCB->pcTaskName);
+        return pdFALSE;
+    }
+
+    size_t sTail = (pxJobQueue->sHead + pxJobQueue->sSize) % pxJobQueue->sMaxSize;
+    pxJobQueue->pxJobItems[sTail].pxJobCode = pxJobCode;
+    pxJobQueue->pxJobItems[sTail].pvParameters = pvParameters;
+    pxJobQueue->sSize++;
+
+    return pdTRUE;
+}
+
+static void vServerCBSDequeueJob( JobQueue_t * pxJobQueue ) {
+    if (pxJobQueue->sSize == 0) {
+        return;
+    }
+    pxJobQueue->sHead = (pxJobQueue->sHead + 1) % pxJobQueue->sMaxSize;
+    pxJobQueue->sSize--;
+}
+
+#define vServerCBSPeakJob( pxJobQueue ) &pxJobQueue->pxJobItems[pxJobQueue->sHead];
+
+void vServerCBSRunJob(void) {
+    printk("vServerCBSRunJob beginning\r\n");
+
+    TCB_t *pxServerTCB = (TCB_t *) pxCurrentTCB;
+    configASSERT(pxServerTCB->xIsServer);
+    
+    TickType_t xLeftover;
+    
+    JobQueue_t *pxJobQueue = (JobQueue_t *) pxServerTCB->pxJobQueue;
+    if (pxJobQueue->sSize == 0) {
+        printk("No Job is Queued when calling vServerRunJob\r\n, Server Name: %s", pxServerTCB->pcTaskName);
+        return;
+    }
+
+    xLeftover = pxServerTCB->xWCET - pxServerTCB->xCurrentRunTime;    
+    while (1) {
+        JobItem_t *xJobItem;
+    
+        xJobItem = vServerCBSPeakJob(pxJobQueue);
+        configASSERT(xJobItem->pxJobCode != NULL);
+
+        (* xJobItem->pxJobCode) (xJobItem->pvParameters);
+    
+        vServerCBSDequeueJob(pxJobQueue);
+        
+        xLeftover = pxServerTCB->xWCET - pxServerTCB->xCurrentRunTime;
+        if (xLeftover <= 0) {
+            break;
+        }
+        if (pxJobQueue->sSize == 0) {
+#if( configUSE_CBS_CASH == 1 )            
+            vServerCBSQueueCASH(xLeftover, pxCurrentTCB->xRelativeDeadline);
+#endif /* configUSE_CBS_CASE */
+            break;
+        }
+    }
+    printk("vServerCBSRunJob completed, suspending server\r\n");
+    vTaskSuspend(NULL);
+}
+
+#if( configUSE_CBS_CASH == 1 )
+void vServerCBSQueueCASH(TickType_t xLeftover, TickType_t xDeadline) {
+    configASSERT(xLeftover > 0);
+    
+    if (xCASHQueueSize >= CASH_QUEUE_SIZE) {
+        printk("CASH queue over run! panic...");
+        configASSERT(pdFALSE);
+    }
+    uint32_t i;
+    CASHItem_t xItem;
+    for (i=xCASHQueueSize; i>0; i--) {
+        xItem = xCASHQueue[i-1];
+        if (xItem.xDeadline > xDeadline) {
+            xCASHQueue[i] = xItem;
+        } else {
+            break;
+        }
+    }
+    xCASHQueue[i].xBudget = xLeftover;
+    xCASHQueue[i].xDeadline = xDeadline;
+    xCASHQueueSize++;    
+}
+
+void vServerCBSEnd(void) {
+    taskDISABLE_INTERRUPTS();
+ 
+    if (pxCurrentTCB->xIsServer == pdFALSE) {
+        printk("Calling vServerEnd on non-server tasks! panic...");
+        configASSERT(pdFALSE);
+    }
+    TickType_t xLeftover = pxCurrentTCB->xWCET - pxCurrentTCB->xCurrentRunTime;
+    TickType_t xDeadline = pxCurrentTCB->xRelativeDeadline;
+    
+    if (xLeftover > 0) {
+        vServerCBSQueueCASH(xLeftover, xDeadline);        
+    }
+
+    taskENABLE_INTERRUPTS();
+    
+    vTaskSuspend(NULL);
+}
+#endif /* configUSE_CBS_CASH */
 
 #endif
 

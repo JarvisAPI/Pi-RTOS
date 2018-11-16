@@ -147,5 +147,7 @@ NVIC value of 255. */
 
 #define configUSE_CBS_SERVER 1
 
+ //#define configUSE_CBS_CASH 1
+
 #endif /* FREERTOS_CONFIG_H */
 

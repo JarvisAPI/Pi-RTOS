@@ -1,4 +1,3 @@
-#ifdef TASK2
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -38,6 +37,8 @@ typedef void (*vCB_t(int, void(*)(int)))(int);
 vCB_t* pvAperiodicRequests[1];
 int iNumAperiodicRequests = 0;
 
+void AsyncJob(void *pParam);
+
 // Task never delays itself, always syspends itself
 TaskHandle_t server;
 //TODO Have a FIFI of tasks
@@ -45,11 +46,8 @@ void CBSServer(void* pParam)
 {
     printk("SERVER STARTED\r\n");
     while(1)
-    {
-        vBusyWait(100);
-        printk("SERVER WAS HERE\r\n");
-        // The server is idle sleep untill we get something
-        vTaskSuspend(NULL);
+    {    
+        vServerCBSRunJob();
     }
 }
 
@@ -72,6 +70,7 @@ void TimingTestTask(void *pParam) {
     }
 }
 
+const char* pcDebug = "Hello World!";
 
 void AsyncTestTask(void *pParam)
 {
@@ -81,8 +80,17 @@ void AsyncTestTask(void *pParam)
         printk("\033%s[ Async Task %d ] at %u\r\n\033[0m", xTaskInfo->color,
                                                            xTaskInfo->iTaskNumber,
                                                            xTaskGetTickCount());
-        vServerCBSNotify(server);
+        vServerCBSNotify(server, (TaskFunction_t) AsyncJob, (void *) pcDebug);
         vTaskDelete( NULL );
+}
+
+void AsyncJob(void *pParam)
+{
+    char *pcString = (char *) pParam;
+    printk("Async Job obtained: %s\r\n", pcString);
+    printk("Busy wait for fun!\r\n");
+    vBusyWait(10);
+    printk("Done busy waiting...\r\n");
 }
 
 /**
@@ -126,5 +134,3 @@ int main(void) {
         ;
     }
 }
-#endif
-

@@ -33,7 +33,7 @@ INCDIRS = Source/include Source/portable/GCC/RaspberryPi \
           Demo/Drivers Demo/
 
 CFLAGS = -Wall $(addprefix -I ,$(INCDIRS))
-CFLAGS += -D RPI2 -D$(TASK)
+CFLAGS += -D RPI2
 CFLAGS += -march=armv7-a -mtune=cortex-a7 -mfloat-abi=hard -mfpu=neon-vfpv4
 
 ASFLAGS += -march=armv7-a -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard

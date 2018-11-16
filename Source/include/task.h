@@ -2326,7 +2326,23 @@ BaseType_t xServerCBSCreate( TaskFunction_t pxTaskCode,
                              TaskHandle_t * const pxCreatedTask ) PRIVILEGED_FUNCTION;
 
 
-void vServerCBSNotify( TaskHandle_t pxServer );
+void vServerCBSNotify( TaskHandle_t pxServer, TaskFunction_t pxJobCode, void * pvParameters );
+
+/**
+ * Runs a job in the server's job queue. Currently the job execution
+ * order is FIFO. Suspends the server when all jobs are completed or budget
+ * runs out.
+ * 
+ * @param pxServer handle to the server
+ */
+void vServerCBSRunJob();
+
+#if( configUSE_CBS_CASH == 1 )
+
+void vServerCBSEnd(void);
+
+#endif /* configUSE_CBS_CASH */
+
 #endif
 
 
