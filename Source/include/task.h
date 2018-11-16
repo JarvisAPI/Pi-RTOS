@@ -2337,12 +2337,6 @@ void vServerCBSNotify( TaskHandle_t pxServer, TaskFunction_t pxJobCode, void * p
  */
 void vServerCBSRunJob();
 
-#if( configUSE_CBS_CASH == 1 )
-
-void vServerCBSEnd(void);
-
-#endif /* configUSE_CBS_CASH */
-
 #endif
 
 

@@ -439,10 +439,28 @@ typedef struct CASHItem_s {
     TickType_t xDeadline;
 } CASHItem_t;
 
+typedef struct CASHQueue_s {
+    CASHItem_t *xCASHItems;
+    size_t sHead;
+    size_t sSize;
+    size_t sMaxSize;    
+} CASHQueue_t;
+
 #define CASH_QUEUE_SIZE 16
-uint32_t xCASHQueueSize = 0;
+
 /* xCASHQueue is sorted in ascending order in terms of xDeadline. */
-PRIVILEGED_DATA static CASHItem_t xCASHQueue[CASH_QUEUE_SIZE];
+PRIVILEGED_DATA static CASHQueue_t xCASHQueue;
+
+
+#define vServerCBSIsEmptyCASHQueue() ((BaseType_t) (xCASHQueue.sSize == 0))
+
+#define vServerCBSPeakCASHQueue() (xCASHQueue.sSize == 0 ? NULL : &xCASHQueue.xCASHItems[xCASHQueue.sHead])
+
+#define SWAP(a, b) do { typeof(a) t; t = a; a = b; b = t; } while(0)
+
+void vServerCBSDecrementCASHQueue(void);
+void vServerCBSQueueCASH(TickType_t xLeftover, TickType_t xDeadline);
+
 #endif /* configCBS_CASH */
 
 #if( INCLUDE_vTaskDelete == 1 )
@@ -2447,6 +2465,18 @@ BaseType_t xReturn;
 	}
 	#else
 	{
+
+#if( configUSE_CBS_CASH == 1 )
+        xCASHQueue.xCASHItems = (CASHItem_t *) pvPortMalloc( sizeof( CASHItem_t ) * CASH_QUEUE_SIZE );
+        if (xCASHQueue.xCASHItems == NULL) {
+            printk("Not enough RAM to create CASH Queue! Panic...\r\n");
+            configASSERT(pdFALSE);
+        }
+        xCASHQueue.sHead = 0;
+        xCASHQueue.sSize = 0;
+        xCASHQueue.sMaxSize = CASH_QUEUE_SIZE;
+#endif
+        
 		/* The Idle task is being created using dynamically allocated RAM. */
 		xReturn = xTaskCreate(	prvIdleTask,
 								"IDLE", configMINIMAL_STACK_SIZE,
@@ -3189,13 +3219,37 @@ BaseType_t xTaskIncrementTick( void )
 		const TickType_t xConstTickCount = xTickCount + 1;
 
                 #if( configUSE_SCHEDULER_EDF == 1 )
-                    pxCurrentTCB->xCurrentRunTime++;
+#if( configUSE_CBS_CASH == 1 )
+        if ( pxCurrentTCB->xIsServer == pdTRUE ) {
+            CASHItem_t *xHeadItem = vServerCBSPeakCASHQueue();            
+            if ( xHeadItem != NULL &&
+                 xHeadItem->xDeadline <= pxCurrentTCB->xRelativeDeadline) {
+                vServerCBSDecrementCASHQueue();
+            }
+            else {
+                pxCurrentTCB->xCurrentRunTime++;
+            }
+        }
+#else
+        pxCurrentTCB->xCurrentRunTime++;        
+#endif /* configUSE_CBS_CASH */
                     #if( configUSE_CBS_SERVER == 1 )
                     if ( ( pxCurrentTCB->xIsServer == pdTRUE ) &&
                          ( pxCurrentTCB->xCurrentRunTime == pxCurrentTCB->xWCET ) )
                     {
+                        printk("[%s] Used up budget at %u\r\n", pxCurrentTCB->pcTaskName, xTaskGetTickCount());
                          vServerCBSReplenish( pxCurrentTCB );
                          vServerCBSRefresh( pxCurrentTCB );
+
+                         TCB_t *pxNewCurrentTCB;
+                         ListItem_t const *endMarker = listGET_END_MARKER( &( pxReadyTasksLists[PRIORITY_EDF] ) );
+                         pxNewCurrentTCB = listGET_LIST_ITEM_OWNER( endMarker->pxNext );
+                         
+                         if (pxNewCurrentTCB != pxCurrentTCB) {
+                             // Server task is not the highest priority task, so we need to switch
+                             printk("New Current TCB: %s\r\n", pxNewCurrentTCB->pcTaskName);
+                             xSwitchRequired = pdTRUE;
+                         }
                     }
                     #endif /* configUSE_CBS_SERVER */
                 #endif /* configUSE_SCHEDULER_EDF  */
@@ -3232,7 +3286,7 @@ BaseType_t xTaskIncrementTick( void )
 					break;
 				}
 				else
-				{
+				{                    
 					/* The delayed list is not empty, get the value of the
 					item at the head of the delayed list.  This is the time
 					at which the task at the head of the delayed list must
@@ -3303,11 +3357,27 @@ BaseType_t xTaskIncrementTick( void )
                                 }
                             }    
                         #else
+#if( configUSE_CBS_SERVER == 1 )
+                            if (pxCurrentTCB->xIsServer) {
+                                printk("Smallest tick: %u\r\n", xSmallestTick);
+                                printk("Preempted by %s, Deadline: %u\r\n", pxTCB->pcTaskName, pxTCB->xRelativeDeadline);
+                                printk("Server Deadline: %u\r\n", pxCurrentTCB->xRelativeDeadline);
+                                printk("Server xItemValue: %u\r\n", pxCurrentTCB->xStateListItem.xItemValue);                                
+                            }
+#endif
                             xSwitchRequired = pdTRUE;
                         #endif /* configUSE_SRP */
 						}
 						else
 						{
+#if( configUSE_CBS_SERVER == 1 )
+                            if (pxCurrentTCB->xIsServer) {
+                                printk("Smallest tick: %u\r\n", xSmallestTick);
+                                printk("NOT Preempted by %s, Deadline: %u\r\n", pxTCB->pcTaskName, pxTCB->xRelativeDeadline);
+                                printk("Server Deadline: %u\r\n", pxCurrentTCB->xRelativeDeadline);
+                                printk("Server xItemValue: %u\r\n", pxCurrentTCB->xStateListItem.xItemValue);
+                            }
+#endif                            
 							mtCOVERAGE_TEST_MARKER();
 						}
 					}
@@ -3386,6 +3456,13 @@ BaseType_t xTaskIncrementTick( void )
 		}
 	}
 	#endif /* configUSE_PREEMPTION */
+
+#if( configUSE_CBS_CASH == 1 )
+    // Processor is idle, so decrement capacity in CASH queue
+    if (pxCurrentTCB == NULL) {
+        vServerCBSDecrementCASHQueue();
+    }
+#endif
     
 	return xSwitchRequired;
 }
@@ -5885,6 +5962,7 @@ BaseType_t xServerCBSCreate( TaskFunction_t pxTaskCode,
 void vServerCBSReplenish( TCB_t* pxServerTCB )
 {
     pxServerTCB->xCurrentRunTime = 0;
+    printk("Server xItemValue: %u\r\n", pxServerTCB->xStateListItem.xItemValue);
     pxServerTCB->xStateListItem.xItemValue += pxServerTCB->xPeriod;
     pxServerTCB->xRelativeDeadline = pxServerTCB->xStateListItem.xItemValue;
     printk( "Server deadline is: %u\r\n", pxServerTCB->xStateListItem.xItemValue);
@@ -5899,12 +5977,12 @@ void vServerCBSRefresh( TCB_t* pxServerTCB )
     prvAddTaskToReadyList( pxServerTCB );
 }
 
-TickType_t xServerCBSGetCurrentCapacity( TaskHandle_t pxServer )
-{
-    TCB_t* pxServerTCB = ( TCB_t * ) pxServer;
-    configASSERT( pxServerTCB->xIsServer == pdTRUE );
-    return pxServerTCB->xWCET - pxServerTCB->xCurrentRunTime;
-}
+/* TickType_t xServerCBSGetCurrentCapacity( TaskHandle_t pxServer ) */
+/* { */
+/*     TCB_t* pxServerTCB = ( TCB_t * ) pxServer; */
+/*     configASSERT( pxServerTCB->xIsServer == pdTRUE ); */
+/*     return pxServerTCB->xWCET - pxServerTCB->xCurrentRunTime; */
+/* } */
 
 void vServerCBSNotify( TaskHandle_t pxServer, TaskFunction_t pxJobCode, void * pvParameters)
 {
@@ -5985,6 +6063,7 @@ void vServerCBSRunJob(void) {
         vServerCBSDequeueJob(pxJobQueue);
         
         xLeftover = pxServerTCB->xWCET - pxServerTCB->xCurrentRunTime;
+        printk("Leftover: %u\r\n", xLeftover);
         if (xLeftover <= 0) {
             break;
         }
@@ -6000,45 +6079,61 @@ void vServerCBSRunJob(void) {
 }
 
 #if( configUSE_CBS_CASH == 1 )
+
+void vServerCBSDecrementCASHQueue(void) {
+    if (xCASHQueue.sSize == 0) {
+        // printk("Decrementing an empty CASH Queue, ignoring...\r\n");
+        return;
+    }
+    CASHItem_t *xCASHItems = xCASHQueue.xCASHItems;
+    xCASHItems[xCASHQueue.sHead].xBudget--;
+    if (xCASHItems[xCASHQueue.sHead].xBudget == 0) {
+        xCASHQueue.sHead = (xCASHQueue.sHead + 1) % xCASHQueue.sMaxSize;
+        xCASHQueue.sSize--;
+    }
+}
+
 void vServerCBSQueueCASH(TickType_t xLeftover, TickType_t xDeadline) {
     configASSERT(xLeftover > 0);
     
-    if (xCASHQueueSize >= CASH_QUEUE_SIZE) {
+    if (xCASHQueue.sSize >= CASH_QUEUE_SIZE) {
         printk("CASH queue over run! panic...");
         configASSERT(pdFALSE);
     }
-    uint32_t i;
-    CASHItem_t xItem;
-    for (i=xCASHQueueSize; i>0; i--) {
-        xItem = xCASHQueue[i-1];
-        if (xItem.xDeadline > xDeadline) {
-            xCASHQueue[i] = xItem;
-        } else {
+    size_t sCursor, sTail;
+    CASHItem_t *xCASHItems = xCASHQueue.xCASHItems;
+
+    // Try to find the correct position starting from head. This is because mod
+    // in C is not the mathematical mod, it is the remainder and will return negative
+    // results so we want to avoid decrementing.
+    sCursor = xCASHQueue.sHead;
+    sTail = ( xCASHQueue.sHead + xCASHQueue.sSize ) % xCASHQueue.sMaxSize;
+    while (sCursor != sTail) {
+        if (xCASHItems[sCursor].xDeadline > xDeadline) {
+            // Found right position.
             break;
         }
-    }
-    xCASHQueue[i].xBudget = xLeftover;
-    xCASHQueue[i].xDeadline = xDeadline;
-    xCASHQueueSize++;    
-}
-
-void vServerCBSEnd(void) {
-    taskDISABLE_INTERRUPTS();
- 
-    if (pxCurrentTCB->xIsServer == pdFALSE) {
-        printk("Calling vServerEnd on non-server tasks! panic...");
-        configASSERT(pdFALSE);
-    }
-    TickType_t xLeftover = pxCurrentTCB->xWCET - pxCurrentTCB->xCurrentRunTime;
-    TickType_t xDeadline = pxCurrentTCB->xRelativeDeadline;
-    
-    if (xLeftover > 0) {
-        vServerCBSQueueCASH(xLeftover, xDeadline);        
+        else if (xCASHItems[sCursor].xDeadline == xDeadline) {
+            // Deadline is the same, so we don't need to add a new entry.
+            xCASHItems[sCursor].xBudget += xLeftover;
+            return;
+        }
+        sCursor = (sCursor + 1) % xCASHQueue.sMaxSize;
     }
 
-    taskENABLE_INTERRUPTS();
+    // Shift everything one element back, starting from sCursor to sTail
+    size_t sLeft = sCursor;
+    size_t sRight;
+    CASHItem_t xItem = xCASHItems[sLeft];
+    while (sLeft != sTail) {
+        sRight = (sLeft + 1) % xCASHQueue.sMaxSize;
+        SWAP (xCASHItems[sRight], xItem);
+        sLeft = sRight;
+    }
     
-    vTaskSuspend(NULL);
+    xCASHItems[sCursor].xBudget = xLeftover;
+    xCASHItems[sCursor].xDeadline = xDeadline;
+    xCASHQueue.sSize++;    
 }
 #endif /* configUSE_CBS_CASH */
 

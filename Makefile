@@ -9,6 +9,8 @@ GDB = $(TOOLCHAIN)gdb
 LIBGCC = $(shell $(CC) -print-libgcc-file-name)
 
 SOURCES = Demo/task1_main.c \
+          Demo/task1_alt.c \
+          Demo/task2_main.c \
           Demo/startup.c \
           Demo/Drivers/rpi_gpio.c \
           Demo/Drivers/rpi_irq.c \
@@ -33,7 +35,7 @@ INCDIRS = Source/include Source/portable/GCC/RaspberryPi \
           Demo/Drivers Demo/
 
 CFLAGS = -Wall $(addprefix -I ,$(INCDIRS))
-CFLAGS += -D RPI2
+CFLAGS += -D RPI2 -D$(TASK)
 CFLAGS += -march=armv7-a -mtune=cortex-a7 -mfloat-abi=hard -mfpu=neon-vfpv4
 
 ASFLAGS += -march=armv7-a -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard

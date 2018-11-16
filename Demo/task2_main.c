@@ -1,4 +1,4 @@
-#ifdef TASK1
+#ifdef TASK2
 #include <FreeRTOS.h>
 #include <task.h>
 #include <printk.h>
@@ -19,17 +19,17 @@ typedef struct TaskInfo_s
 
 
 // Define tasks
-const int iNumTasks = 1;
+const int iNumTasks = 2;
 TaskInfo_t tasks[] =
 {
-    {1, 900, 4000, 7000, "Task 1", "[32;1m"},
+    {1, 100, 405, 405, "Task 1", "[32;1m"},
+    {2, 500, 1000, 1000, "Task 2", "[33;1m"}
 };
 
-const int iNumAsyncs = 2;
+const int iNumAsyncs = 1;
 TaskInfo_t asyncs[] = 
 {
-    {1, 100, 4000, 4000, "ASYNC 1", "[32;2m"},
-    {2, 900, 11000, 11000, "ASYNC 2", "[32;2m"},
+    {1, 400, 1000, 1000, "ASYNC 1", "[34;1m"},
 };
 
 typedef void (*vCB_t(int, void(*)(int)))(int);
@@ -53,14 +53,23 @@ void CBSServer(void* pParam)
 }
 
 void TimingTestTask(void *pParam) {
+    TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;    
+    uint32_t first = 1;
+    if (xTaskInfo->iTaskNumber == 1) {
+        first = 0;
+    }
     while(1) {
-        TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
 
         printk("\033%s[ Task %d ] Started at %u\r\n\033[0m", xTaskInfo->color,
                                                              xTaskInfo->iTaskNumber,
                                                              xTaskGetTickCount());
-
-        vBusyWait(xTaskInfo->xWCET);
+        if (first && xTaskInfo->iTaskNumber == 2) {
+            first = 0;
+            vBusyWait(xTaskInfo->xWCET - 100);
+        }
+        else {
+            vBusyWait(xTaskInfo->xWCET);
+        }
 
         printk("\033%s[ Task %d ] Ended at %u\r\n\033[0m", xTaskInfo->color,
                                                            xTaskInfo->iTaskNumber,
@@ -74,7 +83,6 @@ const char* pcDebug = "Hello World!";
 void AsyncTestTask(void *pParam)
 {
         TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
-        vEndTaskPeriod();
 
         printk("\033%s[ Async Task %d ] at %u\r\n\033[0m", xTaskInfo->color,
                                                            xTaskInfo->iTaskNumber,
@@ -85,11 +93,13 @@ void AsyncTestTask(void *pParam)
 
 void AsyncJob(void *pParam)
 {
-    char *pcString = (char *) pParam;
-    printk("Async Job obtained: %s\r\n", pcString);
-    printk("Busy wait for fun!\r\n");
-    vBusyWait(10);
-    printk("Done busy waiting...\r\n");
+    //char *pcString = (char *) pParam;
+    printk("\033[36;1m[ Async Job ] Started at %u\r\n\033[0m", xTaskGetTickCount());
+    //printk("Async Job obtained: %s\r\n", pcString);
+    //printk("Busy wait for fun!\r\n");
+    uint32_t i;
+    for (i=0; i<400*700; i++);
+    printk("\033[36;1m[ Async Job ] Ended at %u\r\n\033[0m", xTaskGetTickCount());    
 }
 
 /**
@@ -119,7 +129,7 @@ int main(void) {
     }
 
     // Create the server:
-    xServerCBSCreate(CBSServer, "CBS Server", 256, NULL, PRIORITY_EDF, 2000, 3000, &server);
+    xServerCBSCreate(CBSServer, "CBS Server", 256, NULL, PRIORITY_EDF, 300, 1200, &server);
     vPrintSchedule();
     vVerifyLLBound();
 
