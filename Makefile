@@ -9,7 +9,6 @@ GDB = $(TOOLCHAIN)gdb
 LIBGCC = $(shell $(CC) -print-libgcc-file-name)
 
 SOURCES = Demo/task1_main.c \
-          Demo/task1_alt.c \
           Demo/task2_main.c \
           Demo/startup.c \
           Demo/Drivers/rpi_gpio.c \
