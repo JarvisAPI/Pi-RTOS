@@ -2467,6 +2467,7 @@ BaseType_t xReturn;
 	{
 
 #if( configUSE_CBS_CASH == 1 )
+        printk("Allocating CASHQueue Items\r\n");
         xCASHQueue.xCASHItems = (CASHItem_t *) pvPortMalloc( sizeof( CASHItem_t ) * CASH_QUEUE_SIZE );
         if (xCASHQueue.xCASHItems == NULL) {
             printk("Not enough RAM to create CASH Queue! Panic...\r\n");
@@ -3221,7 +3222,7 @@ BaseType_t xTaskIncrementTick( void )
                 #if( configUSE_SCHEDULER_EDF == 1 )
 #if( configUSE_CBS_CASH == 1 )
         if ( pxCurrentTCB->xIsServer == pdTRUE ) {
-            CASHItem_t *xHeadItem = vServerCBSPeakCASHQueue();            
+            CASHItem_t *xHeadItem = vServerCBSPeakCASHQueue();
             if ( xHeadItem != NULL &&
                  xHeadItem->xDeadline <= pxCurrentTCB->xRelativeDeadline) {
                 vServerCBSDecrementCASHQueue();
@@ -3229,6 +3230,9 @@ BaseType_t xTaskIncrementTick( void )
             else {
                 pxCurrentTCB->xCurrentRunTime++;
             }
+        }
+        else {
+            pxCurrentTCB->xCurrentRunTime++;
         }
 #else
         pxCurrentTCB->xCurrentRunTime++;        
