@@ -2,9 +2,9 @@
 from pyscipopt import Model, quicksum, multidict
 
 def BinPackingExample():
-    B = 9
-    w = [2,3,4,5,6,7,8]
-    q = [4,2,6,6,2,2,2]
+    B = 1
+    w = [0.1,0.2,0.3]
+    q = [4,3,2]
     s=[]
     for j in range(len(w)):
         for i in range(q[j]):
