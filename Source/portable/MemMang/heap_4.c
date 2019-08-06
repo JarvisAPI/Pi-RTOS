@@ -152,11 +152,18 @@ static size_t xBlockAllocatedBit = 0;
 
 /*-----------------------------------------------------------*/
 
+#if( configUSE_MULTICORE == 1 )
+static Mutex_t mMemLock = portMUTEX_INIT_VAL;
+#endif /* configUSE_MULTICORE */
+
 void *pvPortMalloc( size_t xWantedSize )
 {
 BlockLink_t *pxBlock, *pxPreviousBlock, *pxNewBlockLink;
 void *pvReturn = NULL;
 
+#if( configUSE_MULTICORE == 1 )
+ portMUTEX_ACQUIRE( &mMemLock );
+#endif /* configUSE_MULTICORE */
 	vTaskSuspendAll();
 	{
 		/* If this is the first call to malloc then the heap will require
@@ -297,6 +304,10 @@ void *pvReturn = NULL;
 	}
 	#endif
 
+#if( configUSE_MULTICORE == 1 )
+    portMUTEX_RELEASE( &mMemLock );
+#endif /* configUSE_MULTICORE */
+    
 	configASSERT( ( ( ( size_t ) pvReturn ) & ( size_t ) portBYTE_ALIGNMENT_MASK ) == 0 );
 	return pvReturn;
 }
@@ -306,6 +317,10 @@ void vPortFree( void *pv )
 {
 uint8_t *puc = ( uint8_t * ) pv;
 BlockLink_t *pxLink;
+
+#if( configUSE_MULTICORE == 1 )
+ portMUTEX_ACQUIRE( &mMemLock );
+#endif /* configUSE_MULTICORE */
 
 	if( pv != NULL )
 	{
@@ -347,6 +362,10 @@ BlockLink_t *pxLink;
 			mtCOVERAGE_TEST_MARKER();
 		}
 	}
+#if( configUSE_MULTICORE == 1 )
+    portMUTEX_RELEASE( &mMemLock );
+#endif /* configUSE_MULTICORE */
+    
 }
 /*-----------------------------------------------------------*/
 

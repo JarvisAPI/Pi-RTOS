@@ -2389,10 +2389,25 @@ void srpSetTaskBlockTime(TaskHandle_t xTaskHandle, TickType_t xBlockTime);
 
 #endif /* configUSE_SRP */
 
+#if( configUSE_GLOBAL_EDF == 1 )
+
+void vInitCoreStructures(uint32_t numActiveCores);
+
+#endif /* configUSE_GLOBAL_EDF */
+
+#if ( configUSE_PARTITION_SCHEDULER == 1 )
+    float fGetCoreTotalUtilization(uint32_t core);
+    UBaseType_t uxTaskGetNumberOfCoreTasks( uint32_t core );
+    TaskHandle_t pxCoreGetCurrentTask( uint32_t core );
+    float fTaskGetUtilization( TaskHandle_t xTask );
+    UBaseType_t xCoreGetCurrentTasklist( UBaseType_t xCore, TaskHandle_t* pxTasks, UBaseType_t xSize );
+    BaseType_t xTaskGetPeriod( TaskHandle_t xTask );
+    BaseType_t xTaskGetDeadline( TaskHandle_t xTask );
+    BaseType_t xTaskGetExecution( TaskHandle_t xTask );
+#endif /* configUSE_PARTITION_SCHEDULER */
+
+
 #ifdef __cplusplus
 }
 #endif
 #endif /* INC_TASK_H */
-
-
-

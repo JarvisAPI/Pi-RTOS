@@ -32,6 +32,8 @@ typedef struct {
     uint32_t PREDIV;
     uint32_t FREECNT;
 } RPI_TIMER_t;
+void rpi_timer_setup_interrupts( void );
+void rpi_timer_clear_interrupts( void );
 
 #define RPI_TIMER ((volatile RPI_TIMER_t *) RPI_TIMER_BASE)
 

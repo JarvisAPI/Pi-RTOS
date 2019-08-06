@@ -11,8 +11,27 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <Drivers/rpi_aux.h>
+#include "FreeRTOS.h"
+
+static Mutex_t mPrintLock = portMUTEX_INIT_VAL;
+
+#if ( configUSE_MULTICORE == 1 )
+    static bool bCorePrint = true;
+#endif /* configUSE_MULTICORE */
+
+const char* cpu_colors[] =
+{
+    "[34;1m",
+    "[35;1m",
+    "[36;1m",
+    "[38;5;57;1m",
+};
+
+extern uint32_t CPUID(void);
 
 /**
  * @brief helper for printing a number in a given base
@@ -49,8 +68,25 @@ static void printnumk(uint8_t base, uint32_t num) {
 
 int printk(const char *fmt, ...) {
     va_list vargs;
-
+    int retval = 0;
+    
     va_start(vargs, fmt);
+
+    if (portMMU_IS_ENABLED()) {
+        portMUTEX_ACQUIRE( &mPrintLock );
+    }
+    
+#if ( configUSE_MULTICORE == 1 )
+    if ( bCorePrint )
+    {
+        rpi_aux_mu_string("\033");
+        rpi_aux_mu_string(cpu_colors[CPUID()]);
+        rpi_aux_mu_string("[ Core ");
+        printnumk( 10, CPUID() );
+        rpi_aux_mu_string(" ]\033[0m ");
+    }
+#endif /* configUSE_MULTICORE */
+    
     while(*fmt) {
         if (*fmt == '%') {
             switch(*(fmt+1)) {
@@ -82,8 +118,8 @@ int printk(const char *fmt, ...) {
             }
             case '%': rpi_aux_mu_putc('%'); break;
             default:
-                va_end(vargs);                
-                return -1;
+                retval = -1;
+                break;
             }
             fmt++;
         } else {
@@ -91,7 +127,65 @@ int printk(const char *fmt, ...) {
         }
         fmt++;
     }
+    
+    if (portMMU_IS_ENABLED()) {
+        portMUTEX_RELEASE( &mPrintLock );
+    }
+    
     va_end(vargs);
 
-    return 0;
+    return retval;
+}
+
+
+#if ( configUSE_MULTICORE == 1 )
+
+void vToggleCorePrint( void )
+{
+    if ( portMMU_IS_ENABLED() )
+        portMUTEX_ACQUIRE( &mPrintLock );
+
+    bCorePrint = !bCorePrint;
+
+    if ( portMMU_IS_ENABLED() )
+        portMUTEX_RELEASE( &mPrintLock );
+}
+
+void vSetCorePrint( bool value )
+{
+    if ( portMMU_IS_ENABLED() )
+        portMUTEX_ACQUIRE( &mPrintLock );
+
+    bCorePrint = value;
+
+    if ( portMMU_IS_ENABLED() )
+        portMUTEX_RELEASE( &mPrintLock );
+}
+
+#endif
+
+void vNPrint( char c, unsigned int num )
+{
+    for ( unsigned int i = 0; i < num; i++ )
+        printk( "%c", c);
+}
+
+void vPrintClear( void )
+{
+    printk("\033[1J");
+}
+
+void vPrintSaveCursor( void )
+{
+    printk("\033[s");
+}
+
+void vPrintRestoreCursor( void )
+{
+    printk("\033[u");
+}
+
+void vPrintCursorMoveRight( uint32_t move )
+{
+    printk("\033[%uC", move);
 }

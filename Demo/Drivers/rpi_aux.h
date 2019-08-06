@@ -84,8 +84,12 @@ void rpi_aux_mu_putc(uint32_t c);
  * Send string
  * @param str
  */
-void rpi_aux_mu_string(char* str);
+void rpi_aux_mu_string(const char* str);
 
 uint32_t rpi_aux_getc(void);
+
+uint32_t rpi_aux_getc_nonblocking(char *ch);
+
+void rpi_aux_mu_enable_interrupts(void);
 
 #endif /* _RPI_AUX_H_ */

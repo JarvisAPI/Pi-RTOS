@@ -9,23 +9,35 @@ GDB = $(TOOLCHAIN)gdb
 LIBGCC = $(shell $(CC) -print-libgcc-file-name)
 
 SOURCES = Demo/task1_main.c \
+	  Demo/task1_main2.c \
           Demo/task2_main.c \
           Demo/task2_cash.c \
+          Demo/task3_main.c \
+          Demo/task3_test.c \
+          Demo/util.c \
+          Demo/task3_part.c \
+          Demo/task3_global.c \
           Demo/startup.c \
           Demo/Drivers/rpi_gpio.c \
           Demo/Drivers/rpi_irq.c \
           Demo/Drivers/rpi_aux.c \
+          Demo/Drivers/rpi_core.c \
+          Demo/Drivers/rpi_synch.c \
+          Demo/Drivers/rpi_synchASM.c \
+          Demo/Drivers/rpi_timer.c \
+          Demo/Drivers/rpi_core_timer.c \
+          Demo/Drivers/rpi_mmu.c \
           Source/tasks.c \
           Source/list.c \
           Source/powf.c \
           Source/sqrt.c \
           Source/sqrtf.c \
+          Source/syncqueue.c \
           Source/portable/GCC/RaspberryPi/port.c \
           Source/portable/GCC/RaspberryPi/portISR.c \
           Source/portable/GCC/RaspberryPi/portASM.c \
           Source/portable/MemMang/heap_4.c \
           Source/printk.c \
-          Source/queue.c \
           Source/assert.c \
           Source/string.c \
 
@@ -38,9 +50,13 @@ CFLAGS = -Wall $(addprefix -I ,$(INCDIRS))
 CFLAGS += -D RPI2 -D$(TASK)
 CFLAGS += -march=armv7-a -mtune=cortex-a7 -mfloat-abi=hard -mfpu=neon-vfpv4
 
-ASFLAGS += -march=armv7-a -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard
+ASFLAGS += -march=armv7-a -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard $(addprefix -I ,$(INCDIRS))
 
 LDFLAGS = 
+
+ZFLAGS = -Wall $(addprefix -I ,$(INCDIRS))
+ZFLAGS += -D RPI2 -D$(TASK)
+ZFLAGS += -mcpu=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard
 
 .PHONY: all clean
 
@@ -52,6 +68,10 @@ $(MOD_NAME): $(OBJECTS)
 build/%.o: %.c
 	mkdir -p $(dir $@)
 	$(TOOLCHAIN)gcc -c $(CFLAGS) $< -o $@
+
+build/%.o: %.S
+	mkdir -p $(dir $@)
+	$(TOOLCHAIN)gcc -c $(ZFLAGS) $< -o $@
 
 build/%.o: %.s
 	mkdir -p $(dir $@)

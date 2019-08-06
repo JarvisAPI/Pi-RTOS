@@ -70,6 +70,11 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
+// Required synchronization library for multicore
+#include "Drivers/rpi_synch.h"
+#include "Drivers/rpi_core.h"
+#include "PureFreeRTOSConfig.h"
+
 #ifdef __cplusplus
 	extern "C" {
 #endif
@@ -97,6 +102,11 @@ typedef portSTACK_TYPE StackType_t;
 typedef long BaseType_t;
 typedef unsigned long UBaseType_t;
 
+#ifdef MUTEX_INIT_VAL
+        #define portMUTEX_INIT_VAL MUTEX_INIT_VAL
+#endif
+        
+        
 typedef uint32_t TickType_t;
 #define portMAX_DELAY ( TickType_t ) 0xffffffffUL
 
@@ -148,11 +158,52 @@ extern void vPortInstallFreeRTOSVectorTable( void );
 globally enable and disable interrupts. */
 #define portENTER_CRITICAL()		vPortEnterCritical();
 #define portEXIT_CRITICAL()			vPortExitCritical();
-#define portENABLE_INTERRUPTS()		__asm volatile ( "CPSIE i 	\n"	);
+#define portENABLE_INTERRUPTS()		__asm volatile ( "CPSIE i 	\n"     \
+                                                     "DSB       \n"     \
+                                                     "ISB         "	);  
 #define portDISABLE_INTERRUPTS()	__asm volatile ( "CPSID i 	\n"		\
 													 "DSB		\n"		\
 													 "ISB		  " );
+        
+// hardware spinlock implementation, used for multicore
+#define portSPIN_LOCK_ACQUIRE( lock ) spinlock_take( (SpinLock_t *) lock)
+#define portSPIN_LOCK_RELEASE( lock ) spinlock_give( (SpinLock_t *) lock)
 
+
+extern uint32_t CPUID(void);
+#define portCPUID() CPUID()
+
+#define portMUTEX_INIT( xMutex ) mutex_init( (Mutex_t *) xMutex )
+#define portMUTEX_ACQUIRE( xMutex ) mutex_take( (Mutex_t *) xMutex )
+#define portMUTEX_RELEASE( xMutex ) mutex_give( (Mutex_t *) xMutex )
+        
+extern uint32_t mmu_is_enabled( void );
+#define portMMU_IS_ENABLED() mmu_is_enabled()
+// The channel that secondary core can be interrupted on
+#define portSECONDARY_CORE_INT_CHANNEL 0
+        
+#define portSEND_CORE_INTERRUPT(cpuid, channel, val) core_send_interrupt( cpuid, channel, val )
+
+#define portCLEAR_CORE_INTERRUPT(channel) core_clear_mailbox_interrupt( (uint32_t) channel )
+
+// Read the value store in the core's given interrupt channel. Basically it is the value
+// that another core sent when it called portSEND_CORE_INTERRUPT
+#define portREAD_CORE_CHANNEL( channel ) core_read_mailbox( (uint32_t) channel )
+
+#define portENABLE_CORE_INTERRUPT_CHANNEL( channel ) core_enable_mailbox_interrupt( (uint32_t) channel )
+
+#define portCORE_SET_START_FUNCTION( cpuid, vfunc ) core_set_start_fn( (uint32_t) cpuid, (core_start_fn_t) vfunc ) 
+
+// Core in charge of running the kernel, used for global scheduling
+#define portKERNEL_CORE 0
+
+#if( configUSE_GLOBAL_EDF == 1 )
+// Use undefined instruction to trigger undefined exception so we can do a
+// context switch
+
+#define portSECONDARY_CORE_YIELD() asm volatile (".word 0xf7f0a000\n")
+#endif /* configUSE_GLOBAL_EDF */
+        
 __attribute__( ( always_inline ) ) static __inline uint32_t portINLINE_SET_INTERRUPT_MASK_FROM_ISR( void )
 {
 volatile uint32_t ulCPSR;

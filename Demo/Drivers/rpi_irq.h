@@ -1,6 +1,8 @@
 #ifndef _RPI_IRQ_H
 #define _RPI_IRQ_H
 
+#include <stdbool.h>
+
 #include "rpi_base.h"
 
 #define RPI_IRQ_BASE                 ( PRI_BASE_ADDRESS + 0xB200 )
@@ -38,6 +40,14 @@
 
 #define RPI_TOTAL_IRQ                 ( RPI_GPU_IRQ_TOTAL + 8 )
 
+
+#define RPI_CORE_IRQ_ID_CNTPSIRQ        0
+#define RPI_CORE_IRQ_ID_CNTPNSIRQ       1
+#define RPI_CORE_IRQ_ID_CNTHPIRQ        2
+#define RPI_CORE_IRQ_ID_CNTVIRQ         3
+// TODO Add all
+#define RPI_TOTAL_CORE_IRQ              4
+
 #define RPI_IRQ_ID_MASK(IRQ_ID)       ( 1 << ( ( IRQ_ID )  % 32 ) )
 #define RPI_IRQ_ID_BANK(IRQ_ID)       ( ( IRQ_ID ) / 32 )
 
@@ -71,6 +81,8 @@ typedef struct {
  * Init RPI IRQ chip
  */
 void rpi_irq_init();
+
+bool rpi_core_irq_register_handler(uint32_t nIRQ, RPI_IRQ_HANDLER_t pHandler, void *pParam);
 
 /**
  * Register IRQ handler function

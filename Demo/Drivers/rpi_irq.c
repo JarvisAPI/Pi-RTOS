@@ -1,23 +1,56 @@
 #include <stdint.h>
+#include <stdbool.h>
+#include <printk.h>
 
+#include "FreeRTOSConfig.h"
+#include "rpi_core.h"
 #include "rpi_irq.h"
+#include "rpi_memory.h"
 
 static RPI_IRQ_TABLE_t g_rpi_irq_table[RPI_TOTAL_IRQ];
+static RPI_IRQ_TABLE_t g_rpi_core_irq_table[RPI_TOTAL_CORE_IRQ];
+
+#define RPI_CORE_IRQ_SRC            ( RPI_CORE_MMIO_BASE + 0x60 )
+#define RPI_CORE_IRQ_SRC_OFFT       ( 0x4 )
 
 #define clz(a) \
  ({ unsigned long __value, __arg = (a); \
      asm ("clz\t%0, %1": "=r" (__value): "r" (__arg)); \
      __value; })
 
+#if( configUSE_GLOBAL_EDF == 1 )
+extern void vKernelCoreInterruptHandler(uint32_t msg);
+#endif
+
+
+#if( configUSE_GLOBAL_EDF == 1 )
+void vKernelCoreIRQHandler(uint32_t interruptSrc) {
+    //printk("Kernel Core mailbox Interrupt: 0x%x\r\n", interruptSrc);
+    // Only allow interrupts from other cores.
+    if (interruptSrc & 0x2) {
+        vKernelCoreInterruptHandler( core_read_mailbox( 1 ) );
+        core_clear_mailbox_interrupt(1);            
+    }
+    if (interruptSrc & 0x4) {
+        vKernelCoreInterruptHandler( core_read_mailbox( 2 ) );
+        core_clear_mailbox_interrupt(2);            
+    }
+    if (interruptSrc & 0x8) {
+        vKernelCoreInterruptHandler( core_read_mailbox( 3 ) );
+        core_clear_mailbox_interrupt(3);            
+    }
+}
+#endif /* configUSE_GLOBAL_EDF */
+
 /**
  *	This is the global IRQ handler on this platform!
  *	It is based on the assembler code found in the Broadcom datasheet.
- *
+ *  This should only be called by core 0.
  **/
 void vApplicationIRQHandler() {
-    register uint32_t ulMaskedStatus;
-    register uint32_t irqNumber;
-    register uint32_t tmp;
+    register uint32_t ulMaskedStatus = 0;
+    register uint32_t irqNumber = 0;
+    register uint32_t tmp = 0;
 
     ulMaskedStatus = RPI_IRQ->BASIC_PENDING;
     tmp = ulMaskedStatus & 0x00000300;	// Check if anything pending in pr1/pr2.
@@ -46,7 +79,21 @@ void vApplicationIRQHandler() {
         }
     }
 
-    //return;
+
+    /* Handle per core interrupts */
+    uint32_t core_irq = MMIO_READ( RPI_CORE_IRQ_SRC + RPI_CORE_IRQ_SRC_OFFT * CPUID() );
+    for( uint32_t irq = 0; irq < RPI_TOTAL_CORE_IRQ; irq++ )
+    {
+        if ( core_irq & ( 1 << irq ) ) 
+        {
+            if (g_rpi_core_irq_table[irq].pHandler)
+            {
+                g_rpi_core_irq_table[irq].pHandler(irq, g_rpi_core_irq_table[irq].pParam);
+            }
+        }
+    }
+
+    return;
 
     emit_interrupt:
 
@@ -81,6 +128,17 @@ void rpi_irq_init() {
         g_rpi_irq_table[i].pHandler = stubHandler;
         g_rpi_irq_table[i].pParam = (void *) 0;
     }
+}
+
+bool rpi_core_irq_register_handler(uint32_t nIRQ, RPI_IRQ_HANDLER_t pHandler, void *pParam)
+{
+    if (nIRQ >= RPI_TOTAL_CORE_IRQ)
+        return false;
+
+    g_rpi_core_irq_table[nIRQ].pHandler = pHandler;
+    g_rpi_core_irq_table[nIRQ].pParam = pParam;
+
+    return true;
 }
 
 int rpi_irq_register_handler(uint32_t nIRQ, RPI_IRQ_HANDLER_t pHandler,

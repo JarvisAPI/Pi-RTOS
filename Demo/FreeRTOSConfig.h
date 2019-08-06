@@ -67,6 +67,8 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
+#include "PureFreeRTOSConfig.h"
+
 /*-----------------------------------------------------------
  * Application specific definitions.
  *
@@ -86,7 +88,7 @@
 #define configTICK_RATE_HZ			( ( TickType_t ) 1000 )
 #define configMAX_PRIORITIES		5
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 500 * 4096 ) )
+#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 1024 * 1024 ) )
 #define configMAX_TASK_NAME_LEN		( 16 )
 #define configUSE_TRACE_FACILITY	0
 #define configUSE_16_BIT_TICKS		0
@@ -98,12 +100,6 @@
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES 		0
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
-
-extern void vSetupTimerInterrupt( void );
-#define configSETUP_TICK_INTERRUPT vSetupTimerInterrupt
-
-extern void vClearTimerInterrupt( void );
-#define configCLEAR_TICK_INTERRUPT vClearTimerInterrupt
 
 extern void vASSERT(void);
 #define configASSERT( x ) if( ( x ) == 0 ) vASSERT();
@@ -148,6 +144,52 @@ NVIC value of 255. */
 #define configUSE_CBS_SERVER 1
 
 #define configUSE_CBS_CASH 1
+
+#define configUSE_MULTICORE 0
+
+/* config Dependent co-routines */
+
+#if ( configUSE_PARTITION_SCHEDULER == 0 )
+
+extern void vSetupTimerInterrupt( void );
+#define configSETUP_TICK_INTERRUPT vSetupTimerInterrupt
+
+extern void vClearTimerInterrupt( void );
+#define configCLEAR_TICK_INTERRUPT vClearTimerInterrupt
+
+#else
+
+#define configSETUP_TICK_INTERRUPT \
+    rpi_core_irq_register_handler( RPI_CORE_IRQ_ID_CNTVIRQ,\
+                                   ( RPI_IRQ_HANDLER_t ) FreeRTOS_Tick_Handler,\
+                                   NULL );\
+    rpi_core_timer_setup_interrupts
+
+extern void rpi_core_timer_clear_interrupts( void );
+#define configCLEAR_TICK_INTERRUPT rpi_core_timer_clear_interrupts
+
+#endif
+
+/*
+ * Enabling multicore introduces alot of restrictions currently,
+ * so be mindful
+ */
+
+#if( configUSE_MULTICORE == 1 )
+#define configUSE_SRP 0
+#define configUSE_SHARED_RUNTIME_STACK 0
+#define configUSE_CO_ROUTINES 0
+#define configUSE_TIMER 0
+
+#if !defined(configUSE_GLOBAL_EDF) && !defined(configUSE_PARTITIONED_EDF)
+
+#if( configUSE_PARTITIONED_EDF == 0 )
+  #define configUSE_GLOBAL_EDF 1
+#endif
+
+#endif
+
+#endif
 
 #endif /* FREERTOS_CONFIG_H */
 

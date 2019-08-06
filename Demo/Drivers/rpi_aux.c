@@ -49,7 +49,7 @@ void rpi_aux_mu_init() {
     RPI_AUX->MU_MCR = 0;
 
     /* Diable all interrupts from mu and clear the fifos */
-    RPI_AUX->MU_IER = 0;
+    RPI_AUX->MU_IER = (1 << 0) | (1 << 2) | (1 << 3);
     RPI_AUX->MU_IIR = 0xC6; // ??
 
     //#define bits 8
@@ -73,6 +73,16 @@ void rpi_aux_mu_init() {
     RPI_AUX->MU_CNTL = RPI_AUX_MU_CNTL_TX_ENABLE | RPI_AUX_MU_CNTL_RX_ENABLE;
 }
 
+#define MU_IER_RCV_INTERRUPT_ENABLE (1 << 0)
+#define MU_IER_RCV_LINE_STATUS_INTERRUPT_ENABLE (1 << 2)
+#define MU_IER_MODEM_STATUS_INTERRUPT_ENABLE (1 << 3)
+
+void rpi_aux_mu_enable_interrupts(void)
+{
+    RPI_AUX->MU_IER = ( MU_IER_RCV_INTERRUPT_ENABLE | MU_IER_RCV_LINE_STATUS_INTERRUPT_ENABLE |
+                        MU_IER_MODEM_STATUS_INTERRUPT_ENABLE );
+}
+
 void rpi_aux_mu_putc(uint32_t c) {
 
     if(c == 0x0A) {
@@ -92,13 +102,11 @@ void rpi_aux_mu_putc(uint32_t c) {
     RPI_AUX->MU_IO = c;
 }
 
-void rpi_aux_mu_string(char* str) {
+void rpi_aux_mu_string(const char* str) {
     while (*str != 0) {
         rpi_aux_mu_putc((uint32_t) * str);
         str++;
     }
-    rpi_aux_mu_putc(0x0A);
-
 }
 
 uint32_t rpi_aux_getc(void) {
@@ -107,4 +115,11 @@ uint32_t rpi_aux_getc(void) {
     }
 
     return (RPI_AUX->MU_IO & 0xFF);
+}
+
+uint32_t rpi_aux_getc_nonblocking(char *ch) {
+    int read = (RPI_AUX->MU_LSR & RPI_AUX_MU_LSR_DATA_READY) != 0;
+    
+    *ch = (RPI_AUX->MU_IO & 0xFF);
+    return read;
 }

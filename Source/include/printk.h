@@ -13,6 +13,13 @@
 #define _ZPRINTK_H_
 
 #include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#define COLOR_RED "[31;1m"
+#define COLOR_GREEN "[32;1m"
+#define COLOR_YELLOW "[33;1m"
+#define COLOR_END "\033[m"
 
 /**
  * @brief A kernel printf() function for debugging the kernel.
@@ -24,4 +31,11 @@
  */
 int printk(const char *format, ...);
 
+void vToggleCorePrint( void );
+void vSetCorePrint( bool value );
+void vNPrint( char c, unsigned int num );
+void vPrintClear( void );
+void vPrintSaveCursor( void );
+void vPrintRestoreCursor( void );
+void vPrintCursorMoveRight( uint32_t move );
 #endif /* _PRINTK_H_ */

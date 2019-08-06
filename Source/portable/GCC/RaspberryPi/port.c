@@ -71,9 +71,18 @@
 #include <stdlib.h>
 #include <printk.h>
 
+
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "Drivers/rpi_mmu.h"
+#include "Drivers/rpi_memory.h"
+
+#if ( configUSE_PARTITION_SCHEDULER == 1 )
+#include <Drivers/rpi_core_timer.h>
+#include <Drivers/rpi_irq.h>
+#endif /* configUSE_PARTITION_SCHEDULER */
+
 
 #if configUSE_PORT_OPTIMISED_TASK_SELECTION == 1
 	/* Check the configuration. */
@@ -124,6 +133,8 @@ debugger. */
 
 /*-----------------------------------------------------------*/
 
+extern uint32_t CPUID(void);
+
 /*
  * Starts the first task executing.  This function is necessarily written in
  * assembly code so is implemented in portASM.s.
@@ -133,7 +144,7 @@ extern void vPortRestoreTaskContext( void );
 /*
  * Used to catch tasks that attempt to return from their implementing function.
  */
-static void prvTaskExitError( void );
+void prvTaskExitError( void );
 
 /*-----------------------------------------------------------*/
 
@@ -142,18 +153,18 @@ variable has to be stored as part of the task context and must be initialised to
 a non zero value to ensure interrupts don't inadvertently become unmasked before
 the scheduler starts.  As it is stored as part of the task context it will
 automatically be set to 0 when the first task is started. */
-volatile uint32_t ulCriticalNesting = 9999UL;
+volatile uint32_t ulCriticalNesting[CORES] = {9999UL};
 
 /* Saved as part of the task context.  If ulPortTaskHasFPUContext is non-zero then
 a floating point context must be saved and restored for the task. */
-volatile uint32_t ulPortTaskHasFPUContext = pdFALSE;
+volatile uint32_t ulPortTaskHasFPUContext[CORES] = {pdFALSE};
 
 /* Set to 1 to pend a context switch from an ISR. */
-volatile uint32_t ulPortYieldRequired = pdFALSE;
+volatile uint32_t ulPortYieldRequired[CORES]  = {pdFALSE};
 
 /* Counts the interrupt nesting depth.  A context switch is only performed if
 if the nesting depth is 0. */
-volatile uint32_t ulPortInterruptNesting = 0UL;
+volatile uint32_t ulPortInterruptNesting[CORES] = {0UL};
 
 /* Used in the asm file to clear an interrupt. */
 __attribute__(( used )) const uint32_t ulICCEOIR = configEOI_ADDRESS;
@@ -235,7 +246,7 @@ StackType_t *pxPortInitialiseStack( StackType_t *pxTopOfStack, TaskFunction_t px
 }
 /*-----------------------------------------------------------*/
 
-static void prvTaskExitError( void )
+void prvTaskExitError( void )
 {
 	/* A function that implements a task must not exit or attempt to return to
 	its caller as there is nothing to return to.  If a task wants to exit it
@@ -243,7 +254,7 @@ static void prvTaskExitError( void )
 
 	Artificially force an assert() to be triggered if configASSERT() is
 	defined, then stop here so application writers can catch the error. */
-	configASSERT( ulPortInterruptNesting == ~0UL );
+	configASSERT( ulPortInterruptNesting[CPUID()] == ~0UL );
 	portDISABLE_INTERRUPTS();
 	for( ;; );
 }
@@ -257,8 +268,9 @@ uint32_t ulAPSR;
 	Privileged mode for the scheduler to start. */
 	__asm volatile ( "MRS %0, APSR" : "=r" ( ulAPSR ) );
 	ulAPSR &= portAPSR_MODE_BITS_MASK;
+    
 	configASSERT( ulAPSR != portAPSR_USER_MODE );
-
+    
 	if( ulAPSR != portAPSR_USER_MODE )
 	{
 		/* Start the timer that generates the tick ISR. */
@@ -283,7 +295,7 @@ void vPortEndScheduler( void )
 {
 	/* Not implemented in ports where there is nothing to return to.
 	Artificially force an assert. */
-	configASSERT( ulCriticalNesting == 1000UL );
+	configASSERT( ulCriticalNesting[CPUID()] == 1000UL );
 }
 /*-----------------------------------------------------------*/
 
@@ -294,31 +306,31 @@ void vPortEnterCritical( void )
 	/* Now interrupts are disabled ulCriticalNesting can be accessed
 	directly.  Increment ulCriticalNesting to keep a count of how many times
 	portENTER_CRITICAL() has been called. */
-	ulCriticalNesting++;
+	ulCriticalNesting[CPUID()]++;
 
 	/* This is not the interrupt safe version of the enter critical function so
 	assert() if it is being called from an interrupt context.  Only API
 	functions that end in "FromISR" can be used in an interrupt.  Only assert if
 	the critical nesting count is 1 to protect against recursive calls if the
 	assert function also uses a critical section. */
-	if( ulCriticalNesting == 1 )
+	if( ulCriticalNesting[CPUID()] == 1 )
 	{
-		configASSERT( ulPortInterruptNesting == 0 );
+		configASSERT( ulPortInterruptNesting[CPUID()] == 0 );
 	}
 }
 /*-----------------------------------------------------------*/
 
 void vPortExitCritical( void )
-{
-	if( ulCriticalNesting > portNO_CRITICAL_NESTING )
+{    
+	if( ulCriticalNesting[CPUID()] > portNO_CRITICAL_NESTING )
 	{
 		/* Decrement the nesting count as the critical section is being
 		exited. */
-		ulCriticalNesting--;
+		ulCriticalNesting[CPUID()]--;
 
 		/* If the nesting level has reached zero then all interrupt
 		priorities must be re-enabled. */
-		if( ulCriticalNesting == portNO_CRITICAL_NESTING )
+		if( ulCriticalNesting[CPUID()] == portNO_CRITICAL_NESTING )
 		{
 			/* Critical nesting has reached zero so all interrupt priorities
 			should be unmasked. */
@@ -327,7 +339,6 @@ void vPortExitCritical( void )
 	}
 }
 /*-----------------------------------------------------------*/
-
 void FreeRTOS_Tick_Handler( void )
 {
 uint32_t ulInterruptStatus;
@@ -337,9 +348,8 @@ uint32_t ulInterruptStatus;
 	/* Increment the RTOS tick. */
 	if( xTaskIncrementTick() != pdFALSE )
 	{
-		ulPortYieldRequired = pdTRUE;
+		ulPortYieldRequired[CPUID()] = pdTRUE;
 	}
-
 	portCLEAR_INTERRUPT_MASK_FROM_ISR( ulInterruptStatus );
 
 	configCLEAR_TICK_INTERRUPT();
@@ -352,11 +362,9 @@ uint32_t ulInitialFPSCR = 0;
 
 	/* A task is registering the fact that it needs an FPU context.  Set the
 	FPU flag (which is saved as part of the task context). */
-	ulPortTaskHasFPUContext = pdTRUE;
+	ulPortTaskHasFPUContext[CPUID()] = pdTRUE;
 
 	/* Initialise the floating point status register. */
 	__asm volatile ( "FMXR 	FPSCR, %0" :: "r" (ulInitialFPSCR) );
 }
 /*-----------------------------------------------------------*/
-
-

@@ -32,7 +32,7 @@ TaskInfo_t asyncs[] =
 {
     {1, 100, 400, 400, "ASYNC 1", "[34;1m"},
     {2, 500, 1000, 1000, "ASYNC 2", "[34;1m"},
-    {3, 700, 10000, 10000, "ASYNC 3", "[34;1m"}
+    {3, 700, 1200, 1200, "ASYNC 3", "[34;1m"}
 };
 
 typedef void (*vCB_t(int, void(*)(int)))(int);
@@ -50,10 +50,13 @@ TaskHandle_t server1;
 TaskHandle_t server2;
 TaskHandle_t server3;
 
-//TODO Have a FIFI of tasks
+void delay(uint32_t ms) {
+    int i;
+    for(i=0; i<ms*610; i++);
+}
+
 void CBSServer(void* pParam)
 {
-    printk("SERVER STARTED\r\n");
     while(1)
     {    
         vServerCBSRunJob();
@@ -73,10 +76,10 @@ void TimingTestTask(void *pParam) {
                                                              xTaskGetTickCount());
         if (first && xTaskInfo->iTaskNumber == 2) {
             first = 0;
-            vBusyWait(xTaskInfo->xWCET - 100);
+            delay(xTaskInfo->xWCET);
         }
         else {
-            vBusyWait(xTaskInfo->xWCET);
+            delay(xTaskInfo->xWCET);
         }
 
         printk("\033%s[ Task %d ] Ended at %u\r\n\033[0m", xTaskInfo->color,
@@ -90,11 +93,11 @@ const char* pcDebug = "Hello World!";
 
 void AsyncTestTask1(void *pParam)
 {
-        TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
+    TaskInfo_t* xTaskInfo = (TaskInfo_t*) pParam;
 
-        printk("\033%s[ Async Task %d ] at %u\r\n\033[0m", xTaskInfo->color,
-                                                           xTaskInfo->iTaskNumber,
-                                                           xTaskGetTickCount());
+    printk("\033%s[ Async Task %d ] at %u\r\n\033[0m", xTaskInfo->color,
+           xTaskInfo->iTaskNumber,
+           xTaskGetTickCount());
     while (1) {
         vServerCBSNotify(server1, (TaskFunction_t) AsyncJob1, (void *) pcDebug);
         vEndTaskPeriod();
@@ -121,43 +124,59 @@ void AsyncTestTask3(void *pParam)
     printk("\033%s[ Async Task %d ] at %u\r\n\033[0m", xTaskInfo->color,
            xTaskInfo->iTaskNumber,
            xTaskGetTickCount());
-    vServerCBSNotify(server3, (TaskFunction_t) AsyncJob3, (void *) pcDebug);
-    vTaskDelete( NULL );
+    while (1) {
+        vServerCBSNotify(server3, (TaskFunction_t) AsyncJob3, (void *) pcDebug);
+        vEndTaskPeriod();
+    }
 }
 
 void AsyncJob1(void *pParam)
 {
     //char *pcString = (char *) pParam;
+    portDISABLE_INTERRUPTS();
     printk("\033[36;1m[ Async Job 1 ] Started at %u\r\n\033[0m", xTaskGetTickCount());
+    portENABLE_INTERRUPTS();
     //printk("Async Job obtained: %s\r\n", pcString);
     //printk("Busy wait for fun!\r\n");
-    uint32_t i;
-    for (i=0; i<100*700; i++);
+    delay(100);
+    portDISABLE_INTERRUPTS();    
     printk("\033[36;1m[ Async Job 1 ] Ended at %u\r\n\033[0m", xTaskGetTickCount());
+    portENABLE_INTERRUPTS();    
 }
 
-uint32_t finishEarlier = 100;
+uint32_t finishEarlier = 1;
 void AsyncJob2(void *pParam)
 {
     //char *pcString = (char *) pParam;
+    portDISABLE_INTERRUPTS();    
     printk("\033[36;1m[ Async Job 2 ] Started at %u\r\n\033[0m", xTaskGetTickCount());
+    portENABLE_INTERRUPTS();    
     //printk("Async Job obtained: %s\r\n", pcString);
     //printk("Busy wait for fun!\r\n");
-    uint32_t i;
-    for (i=0; i<(500-finishEarlier)*700; i++);
+    if (finishEarlier) {
+        finishEarlier = 0;
+        delay(400);
+    }
+    else {
+        delay(500);
+    }
+    portDISABLE_INTERRUPTS();    
     printk("\033[36;1m[ Async Job 2 ] Ended at %u\r\n\033[0m", xTaskGetTickCount());
-    finishEarlier = 0;
+    portENABLE_INTERRUPTS();    
 }
 
 void AsyncJob3(void *pParam)
 {
     //char *pcString = (char *) pParam;
+    portDISABLE_INTERRUPTS();    
     printk("\033[36;1m[ Async Job 3 ] Started at %u\r\n\033[0m", xTaskGetTickCount());
+    portENABLE_INTERRUPTS();    
     //printk("Async Job obtained: %s\r\n", pcString);
     //printk("Busy wait for fun!\r\n");
-    uint32_t i;
-    for (i=0; i<700*700; i++);
+    delay(400);
+    portDISABLE_INTERRUPTS();    
     printk("\033[36;1m[ Async Job 3 ] Ended at %u\r\n\033[0m", xTaskGetTickCount());
+    portENABLE_INTERRUPTS();    
 }
 
 /**
@@ -169,24 +188,20 @@ void AsyncJob3(void *pParam)
 int main(void) {
     rpi_cpu_irq_disable();
     rpi_aux_mu_init();
-    
-    // Create ASYNCS
-    xTaskCreate(AsyncTestTask1, asyncs[1].name, 256, (void *) &asyncs[1],
-                2, asyncs[1].xWCET, asyncs[1].xRelativeDeadline,
-                asyncs[1].xPeriod, NULL);
-    
-    xTaskCreate(AsyncTestTask2, asyncs[2].name, 256, (void *) &asyncs[2],
-                2, asyncs[2].xWCET, asyncs[2].xRelativeDeadline,
-                asyncs[2].xPeriod, NULL);
-    
-    xTaskCreate(AsyncTestTask3, asyncs[3].name, 256, (void *) &asyncs[3],
-                2, asyncs[3].xWCET, asyncs[3].xRelativeDeadline,
-                asyncs[3].xPeriod, NULL);
+
+    TaskFunction_t asyncFuncs[] = {AsyncTestTask1, AsyncTestTask2, AsyncTestTask3};
+    uint32_t i;
+    for (i=0; i<iNumAsyncs; i++) {
+        // Create ASYNCS
+        xTaskCreate(asyncFuncs[i], asyncs[i].name, 256, (void *) &asyncs[i],
+                    2, asyncs[i].xWCET, asyncs[i].xRelativeDeadline,
+                    asyncs[i].xPeriod, NULL);
+    }
 
     // Create the server:
     xServerCBSCreate(CBSServer, "CBS Server 1", 256, NULL, PRIORITY_EDF, 100, 400, &server1);
     xServerCBSCreate(CBSServer, "CBS Server 2", 256, NULL, PRIORITY_EDF, 500, 1000, &server2);
-    xServerCBSCreate(CBSServer, "CBS Server 3", 256, NULL, PRIORITY_EDF, 700, 10000, &server3);
+    xServerCBSCreate(CBSServer, "CBS Server 3", 256, NULL, PRIORITY_EDF, 300, 1180, &server3);
     vPrintSchedule();
     vVerifyLLBound();
 
